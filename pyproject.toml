@@ -1,0 +1,25 @@
+[project]
+name = "x4-modding"
+version = "0.1.0"
+description = "X4: Foundations modding tools for Linux"
+requires-python = ">=3.13"
+dependencies = []
+
+[project.scripts]
+x4cat = "x4_catalog:main"
+
+[dependency-groups]
+dev = ["pytest>=8.0", "ruff>=0.4", "mypy>=1.10"]
+
+[tool.ruff]
+line-length = 99
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "B", "A", "SIM", "TCH"]
+
+[tool.mypy]
+strict = true
+python_version = "3.13"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
