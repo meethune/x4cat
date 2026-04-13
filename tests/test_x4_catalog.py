@@ -602,3 +602,148 @@ class TestCli:
         # the diff catalog should contain only old.xml (changed) and new.xml (added)
         vfs = build_vfs(out_cat.parent, prefix="ext_")
         assert set(vfs.keys()) == {"old.xml", "new.xml"}
+
+
+# --- Security: path traversal ---
+
+
+class TestPathTraversal:
+    def test_dotdot_path_rejected_on_extract(self, tmp_path: Path) -> None:
+        from tests.conftest import _write_cat_dat
+
+        _write_cat_dat(
+            tmp_path,
+            "01.cat",
+            [("../../etc/evil.txt", b"pwned", 1000000)],
+        )
+        out = tmp_path / "output"
+        with pytest.raises(ValueError, match="[Pp]ath traversal"):
+            extract_to_disk(tmp_path, out)
+
+    def test_absolute_path_stripped_to_relative(self, tmp_path: Path) -> None:
+        from tests.conftest import _write_cat_dat
+
+        _write_cat_dat(
+            tmp_path,
+            "01.cat",
+            [("/etc/passwd", b"root:x:0:0", 1000000)],
+        )
+        out = tmp_path / "output"
+        # leading / is stripped by parse_cat_line, so it extracts safely as etc/passwd
+        result = extract_to_disk(tmp_path, out)
+        assert len(result) == 1
+        assert (out / "etc" / "passwd").exists()
+
+    def test_sneaky_dotdot_in_middle_rejected(self, tmp_path: Path) -> None:
+        from tests.conftest import _write_cat_dat
+
+        _write_cat_dat(
+            tmp_path,
+            "01.cat",
+            [("md/../../../etc/shadow", b"nope", 1000000)],
+        )
+        out = tmp_path / "output"
+        with pytest.raises(ValueError, match="[Pp]ath traversal"):
+            extract_to_disk(tmp_path, out)
+
+    def test_safe_path_still_works(self, tmp_path: Path) -> None:
+        from tests.conftest import _write_cat_dat
+
+        _write_cat_dat(
+            tmp_path,
+            "01.cat",
+            [("md/safe_script.xml", b"<safe/>", 1000000)],
+        )
+        out = tmp_path / "output"
+        result = extract_to_disk(tmp_path, out)
+        assert len(result) == 1
+        assert (out / "md" / "safe_script.xml").read_bytes() == b"<safe/>"
+
+
+# --- Security: input validation ---
+
+
+class TestInputValidation:
+    def test_negative_size_rejected(self) -> None:
+        with pytest.raises(ValueError, match="[Nn]egative size"):
+            parse_cat_line("file.xml -1 1000 abcdef1234567890abcdef1234567890")
+
+    def test_negative_mtime_rejected(self) -> None:
+        with pytest.raises(ValueError, match="[Nn]egative mtime"):
+            parse_cat_line("file.xml 10 -1 abcdef1234567890abcdef1234567890")
+
+    def test_invalid_md5_rejected(self) -> None:
+        with pytest.raises(ValueError, match="[Ii]nvalid MD5"):
+            parse_cat_line("file.xml 10 1000 not-a-hash")
+
+    def test_too_few_fields_rejected(self) -> None:
+        with pytest.raises(ValueError, match="[Mm]alformed"):
+            parse_cat_line("onlytwo fields")
+
+    def test_trailing_spaces_handled(self) -> None:
+        entry = parse_cat_line("file.xml 10 1000 abcdef1234567890abcdef1234567890   ")
+        assert entry.path == "file.xml"
+        assert entry.md5 == "abcdef1234567890abcdef1234567890"
+
+    def test_malformed_lines_skipped_in_index(self, tmp_path: Path) -> None:
+        (tmp_path / "01.cat").write_text(
+            "good.xml 4 1000 d3b07384d113edec49eaa6238ad5ff00\n"
+            "bad line\n"
+            "also_bad -1 1000 abcdef1234567890abcdef1234567890\n",
+            encoding="utf-8",
+        )
+        (tmp_path / "01.dat").write_bytes(b"good")
+        vfs = build_vfs(tmp_path)
+        assert list(vfs.keys()) == ["good.xml"]
+
+
+# --- Security: symlink safety ---
+
+
+class TestSymlinkSafety:
+    def test_symlinks_skipped_in_pack(self, tmp_path: Path) -> None:
+        src = tmp_path / "src"
+        src.mkdir()
+        (src / "real.txt").write_bytes(b"real")
+        (src / "link.txt").symlink_to(src / "real.txt")
+
+        cat_path = tmp_path / "01.cat"
+        count = pack_catalog(src, cat_path)
+        assert count == 1  # only real.txt, not the symlink
+
+        vfs = build_vfs(tmp_path)
+        assert "real.txt" in vfs
+        assert "link.txt" not in vfs
+
+    def test_symlinks_skipped_in_diff(self, tmp_path: Path) -> None:
+        base = tmp_path / "base"
+        base.mkdir()
+        (base / "file.txt").write_bytes(b"hello")
+
+        mod = tmp_path / "mod"
+        mod.mkdir()
+        (mod / "file.txt").write_bytes(b"hello")
+        (mod / "sneaky.txt").symlink_to("/etc/hostname")
+
+        changed, _deleted = diff_file_sets(base, mod)
+        # symlink should not appear in changed set
+        assert "sneaky.txt" not in changed
+
+
+# --- Security: MD5 integrity verification ---
+
+
+class TestMd5Verification:
+    def test_corrupted_dat_detected(self, tmp_path: Path) -> None:
+        from x4_catalog._core import _read_payload
+
+        # write valid cat but corrupt the dat
+        (tmp_path / "01.cat").write_text(
+            f"file.txt 5 1000 {_md5(b'hello')}\n",
+            encoding="utf-8",
+        )
+        (tmp_path / "01.dat").write_bytes(b"wrong")
+
+        vfs = build_vfs(tmp_path)
+        with pytest.raises(OSError, match="MD5 mismatch"):
+            _read_payload(vfs["file.txt"])
