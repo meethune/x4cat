@@ -1,11 +1,13 @@
 """
-XRCatTool-equivalent for Linux: read, list, and extract Egosoft X4 .cat/.dat archives.
+XRCatTool-equivalent for Linux: read, list, extract, pack, and diff X4 .cat/.dat archives.
 
-Format (per community docs and public scripts):
+Format (per community docs and Egosoft's XRCatTool readme):
 - Each line in a .cat file: ``<filepath> <size> <unix_mtime> <md5hex>``
 - Filenames may contain spaces; the last three space-separated fields are fixed.
 - The matching .dat file stores file payloads consecutively in .cat line order.
 - Later numbered catalogs override earlier ones for the same virtual path.
+- Extensions use ``ext_NN.cat`` (extension-local) and ``subst_NN.cat`` (base-game override).
+- Version-specific catalogs (``ext_vNNN.cat``, ``subst_vNNN.cat``) are supported.
 
 Usage::
 
@@ -15,21 +17,38 @@ Usage::
     # List only MD scripts
     x4cat list /path/to/X4\\ Foundations -g 'md/*.xml'
 
+    # List with regex include/exclude
+    x4cat list /path/to/X4\\ Foundations --include '^aiscripts/' --exclude '\\.xsd$'
+
     # Extract AI scripts to a working directory
     x4cat extract /path/to/X4\\ Foundations -o ./unpacked -g 'aiscripts/*'
 
     # Extract everything from a DLC extension
     x4cat extract /path/to/X4\\ Foundations/extensions/ego_dlc_boron -o ./boron -p ext_
+
+    # Pack loose files into a catalog
+    x4cat pack ./my_mod_files -o ./my_mod/ext_01.cat
+
+    # Append more files to an existing catalog
+    x4cat pack ./extra_files -o ./my_mod/ext_01.cat --append
+
+    # Generate a diff catalog (only new/changed files)
+    x4cat diff --base ./original --mod ./modified -o ./my_mod/ext_01.cat
 """
 
 from __future__ import annotations
 
 import argparse
+import hashlib
+import os
 import re
 import sys
+from collections.abc import Callable
 from dataclasses import dataclass
 from fnmatch import fnmatch
 from pathlib import Path
+
+type _CmdHandler = Callable[[argparse.Namespace], int]
 
 
 @dataclass(frozen=True, slots=True)
@@ -68,8 +87,8 @@ def parse_cat_line(line: str) -> CatEntry:
 def iter_cat_files(directory: Path, prefix: str = "") -> list[Path]:
     """Return .cat files matching ``{prefix}NN.cat`` sorted by numeric id.
 
-    Default prefix "" matches base-game catalogs (01.cat, 02.cat, …).
-    Use prefix="ext_" for extension catalogs (ext_01.cat, ext_02.cat, …).
+    Default prefix "" matches base-game catalogs (01.cat, 02.cat, ...).
+    Use prefix="ext_" for extension catalogs, "subst_" for substitution catalogs.
     Signature catalogs (``*_sig.cat``) are always excluded.
     """
     pattern = re.compile(rf"^{re.escape(prefix)}(\d+)\.cat$", re.IGNORECASE)
@@ -129,17 +148,53 @@ def build_vfs(
     return vfs
 
 
+def build_vfs_multi(
+    sources: list[tuple[Path, str]],
+) -> dict[str, CatEntry]:
+    """Build a merged VFS from multiple source directories.
+
+    *sources* is a list of ``(directory, prefix)`` tuples.
+    Later sources override earlier ones for the same path, matching
+    XRCatTool's ``-in path1 path2 ...`` behaviour.
+    """
+    vfs: dict[str, CatEntry] = {}
+    for directory, prefix in sources:
+        for cat_path in iter_cat_files(directory, prefix=prefix):
+            for entry in _read_cat_index(cat_path):
+                vfs[entry.path] = entry
+    return vfs
+
+
+def _filter_entries(
+    entries: list[CatEntry],
+    glob_pattern: str | None = None,
+    include_re: str | None = None,
+    exclude_re: str | None = None,
+) -> list[CatEntry]:
+    """Apply glob, include-regex, and exclude-regex filters to a list of entries."""
+    result = entries
+    if glob_pattern is not None:
+        result = [e for e in result if fnmatch(e.path, glob_pattern)]
+    if include_re is not None:
+        compiled = re.compile(include_re)
+        result = [e for e in result if compiled.search(e.path)]
+    if exclude_re is not None:
+        compiled = re.compile(exclude_re)
+        result = [e for e in result if not compiled.search(e.path)]
+    return result
+
+
 def list_entries(
     directory: Path,
     glob_pattern: str | None = None,
     prefix: str = "",
+    include_re: str | None = None,
+    exclude_re: str | None = None,
 ) -> list[CatEntry]:
-    """Return deduplicated entries, optionally filtered by a glob pattern."""
+    """Return deduplicated entries, optionally filtered by glob and/or regex."""
     vfs = build_vfs(directory, prefix=prefix)
     entries = sorted(vfs.values(), key=lambda e: e.path)
-    if glob_pattern is None:
-        return entries
-    return [e for e in entries if fnmatch(e.path, glob_pattern)]
+    return _filter_entries(entries, glob_pattern, include_re, exclude_re)
 
 
 def _read_payload(entry: CatEntry) -> bytes:
@@ -158,12 +213,20 @@ def extract_to_disk(
     output_dir: Path,
     glob_pattern: str | None = None,
     prefix: str = "",
+    include_re: str | None = None,
+    exclude_re: str | None = None,
 ) -> list[Path]:
-    """Extract files to disk, preserving directory structure.
+    """Extract files to disk, preserving directory structure and mtimes.
 
     Returns list of written file paths.
     """
-    entries = list_entries(directory, glob_pattern=glob_pattern, prefix=prefix)
+    entries = list_entries(
+        directory,
+        glob_pattern=glob_pattern,
+        prefix=prefix,
+        include_re=include_re,
+        exclude_re=exclude_re,
+    )
     if not entries:
         return []
 
@@ -173,11 +236,158 @@ def extract_to_disk(
         dest.parent.mkdir(parents=True, exist_ok=True)
         data = _read_payload(entry)
         dest.write_bytes(data)
+        os.utime(dest, (entry.mtime, entry.mtime))
         written.append(dest)
     return written
 
 
+# --- Packing / writing catalogs ---
+
+
+def _collect_loose_files(root: Path) -> list[tuple[str, Path]]:
+    """Walk *root* and return ``(virtual_path, disk_path)`` sorted by virtual path."""
+    pairs: list[tuple[str, Path]] = []
+    for disk_path in sorted(root.rglob("*")):
+        if not disk_path.is_file():
+            continue
+        vpath = disk_path.relative_to(root).as_posix()
+        pairs.append((vpath, disk_path))
+    return pairs
+
+
+def _md5_bytes(data: bytes) -> str:
+    return hashlib.md5(data).hexdigest()
+
+
+def pack_catalog(
+    source_dir: Path,
+    cat_path: Path,
+    append: bool = False,
+) -> int:
+    """Pack loose files from *source_dir* into a .cat/.dat pair at *cat_path*.
+
+    If *append* is True and the catalog already exists, new entries are appended
+    to both the .cat index and .dat data file. An appended entry with the same
+    path as an existing one overrides it when read via ``build_vfs``.
+
+    Returns the number of files packed.
+    """
+    cat_path.parent.mkdir(parents=True, exist_ok=True)
+    dat_path = cat_path.with_suffix(".dat")
+
+    files = _collect_loose_files(source_dir)
+
+    if append and cat_path.exists():
+        cat_mode = "a"
+        dat_mode = "ab"
+    else:
+        cat_mode = "w"
+        dat_mode = "wb"
+
+    with open(cat_path, cat_mode, encoding="utf-8") as cf, open(dat_path, dat_mode) as df:
+        for vpath, disk_path in files:
+            data = disk_path.read_bytes()
+            mtime = int(disk_path.stat().st_mtime)
+            md5 = _md5_bytes(data)
+            cf.write(f"{vpath} {len(data)} {mtime} {md5}\n")
+            df.write(data)
+
+    return len(files)
+
+
+# --- Diff generation ---
+
+
+def _scan_dir_md5(root: Path) -> dict[str, str]:
+    """Walk *root* and return ``{virtual_path: md5hex}``."""
+    result: dict[str, str] = {}
+    for disk_path in root.rglob("*"):
+        if not disk_path.is_file():
+            continue
+        vpath = disk_path.relative_to(root).as_posix()
+        result[vpath] = _md5_bytes(disk_path.read_bytes())
+    return result
+
+
+def diff_file_sets(
+    base_dir: Path,
+    mod_dir: Path,
+) -> tuple[dict[str, Path], list[str]]:
+    """Compare two directories and identify changes.
+
+    Returns ``(changed, deleted)`` where:
+    - *changed*: ``{virtual_path: disk_path_in_mod}`` for new or modified files.
+    - *deleted*: list of virtual paths present in base but absent in mod.
+    """
+    base_hashes = _scan_dir_md5(base_dir)
+    mod_hashes = _scan_dir_md5(mod_dir)
+
+    changed: dict[str, Path] = {}
+    for vpath, mod_md5 in sorted(mod_hashes.items()):
+        base_md5 = base_hashes.get(vpath)
+        if base_md5 != mod_md5:
+            changed[vpath] = mod_dir / vpath
+
+    deleted = sorted(vp for vp in base_hashes if vp not in mod_hashes)
+
+    return changed, deleted
+
+
+def diff_and_pack(
+    base_dir: Path,
+    mod_dir: Path,
+    cat_path: Path,
+) -> tuple[int, int]:
+    """Generate a diff between *base_dir* and *mod_dir*, pack changed files.
+
+    Returns ``(num_changed, num_deleted)``.
+    Deleted paths are printed but not embedded in the catalog (X4 does not
+    use deletion markers in extension catalogs).
+    """
+    changed, deleted = diff_file_sets(base_dir, mod_dir)
+
+    cat_path.parent.mkdir(parents=True, exist_ok=True)
+    dat_path = cat_path.with_suffix(".dat")
+
+    with open(cat_path, "w", encoding="utf-8") as cf, open(dat_path, "wb") as df:
+        for vpath in sorted(changed.keys()):
+            disk_path = changed[vpath]
+            data = disk_path.read_bytes()
+            mtime = int(disk_path.stat().st_mtime)
+            md5 = _md5_bytes(data)
+            cf.write(f"{vpath} {len(data)} {mtime} {md5}\n")
+            df.write(data)
+
+    return len(changed), len(deleted)
+
+
 # --- CLI ---
+
+
+def _add_filter_args(parser: argparse.ArgumentParser) -> None:
+    """Add shared glob / include / exclude arguments to a subparser."""
+    parser.add_argument("-g", "--glob", default=None, help="Filter by glob pattern")
+    parser.add_argument(
+        "--include",
+        default=None,
+        metavar="REGEX",
+        help="Include only paths matching this regex",
+    )
+    parser.add_argument(
+        "--exclude",
+        default=None,
+        metavar="REGEX",
+        help="Exclude paths matching this regex",
+    )
+
+
+def _add_prefix_arg(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "-p",
+        "--prefix",
+        default="",
+        help="Catalog filename prefix (default: '' for NN.cat, use 'ext_' for extensions)",
+    )
 
 
 def _cmd_list(args: argparse.Namespace) -> int:
@@ -185,6 +395,8 @@ def _cmd_list(args: argparse.Namespace) -> int:
         Path(args.game_dir),
         glob_pattern=args.glob,
         prefix=args.prefix,
+        include_re=args.include,
+        exclude_re=args.exclude,
     )
     for e in entries:
         print(f"{e.size:>12}  {e.path}")
@@ -202,6 +414,8 @@ def _cmd_extract(args: argparse.Namespace) -> int:
         output,
         glob_pattern=args.glob,
         prefix=args.prefix,
+        include_re=args.include,
+        exclude_re=args.exclude,
     )
     for p in written:
         print(p)
@@ -209,42 +423,89 @@ def _cmd_extract(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_pack(args: argparse.Namespace) -> int:
+    if not args.output:
+        print("error: -o / --output is required for pack", file=sys.stderr)
+        return 1
+    cat_path = Path(args.output)
+    count = pack_catalog(Path(args.source_dir), cat_path, append=args.append)
+    action = "appended to" if args.append else "packed into"
+    print(f"{count} file(s) {action} {cat_path}")
+    return 0
+
+
+def _cmd_diff(args: argparse.Namespace) -> int:
+    if not args.output:
+        print("error: -o / --output is required for diff", file=sys.stderr)
+        return 1
+    cat_path = Path(args.output)
+    num_changed, num_deleted = diff_and_pack(
+        Path(args.base),
+        Path(args.mod),
+        cat_path,
+    )
+    print(f"{num_changed} changed/added, {num_deleted} deleted")
+    if num_deleted:
+        _, deleted = diff_file_sets(Path(args.base), Path(args.mod))
+        print("\nDeleted files (not in catalog — handle via XML diff patches):")
+        for d in deleted:
+            print(f"  - {d}")
+    if num_changed:
+        print(f"\nDiff catalog written to {cat_path}")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="x4cat",
-        description="List and extract files from X4: Foundations .cat/.dat archives.",
+        description="List, extract, pack, and diff X4: Foundations .cat/.dat archives.",
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
     # -- list --
     p_list = sub.add_parser("list", aliases=["ls"], help="List archive contents")
     p_list.add_argument("game_dir", help="Path to X4 install or extension directory")
-    p_list.add_argument("-g", "--glob", default=None, help="Filter by glob pattern")
-    p_list.add_argument(
-        "-p",
-        "--prefix",
-        default="",
-        help="Catalog filename prefix (default: '' for NN.cat, use 'ext_' for extensions)",
-    )
+    _add_filter_args(p_list)
+    _add_prefix_arg(p_list)
 
     # -- extract --
     p_ext = sub.add_parser("extract", aliases=["x"], help="Extract files to disk")
     p_ext.add_argument("game_dir", help="Path to X4 install or extension directory")
     p_ext.add_argument("-o", "--output", default=None, help="Output directory (required)")
-    p_ext.add_argument("-g", "--glob", default=None, help="Filter by glob pattern")
-    p_ext.add_argument(
-        "-p",
-        "--prefix",
-        default="",
-        help="Catalog filename prefix (default: '' for NN.cat, use 'ext_' for extensions)",
+    _add_filter_args(p_ext)
+    _add_prefix_arg(p_ext)
+
+    # -- pack --
+    p_pack = sub.add_parser("pack", help="Pack loose files into a .cat/.dat catalog")
+    p_pack.add_argument("source_dir", help="Directory of loose files to pack")
+    p_pack.add_argument("-o", "--output", default=None, help="Output .cat path (required)")
+    p_pack.add_argument(
+        "--append",
+        action="store_true",
+        help="Append to existing catalog instead of overwriting",
     )
 
+    # -- diff --
+    p_diff = sub.add_parser(
+        "diff", help="Generate a diff catalog containing only new/changed files"
+    )
+    p_diff.add_argument("--base", required=True, help="Base/original directory")
+    p_diff.add_argument("--mod", required=True, help="Modified directory")
+    p_diff.add_argument("-o", "--output", default=None, help="Output .cat path (required)")
+
     args = parser.parse_args(argv)
-    if args.command in ("list", "ls"):
-        return _cmd_list(args)
-    if args.command in ("extract", "x"):
-        return _cmd_extract(args)
-    return 1
+    dispatch: dict[str, _CmdHandler] = {
+        "list": _cmd_list,
+        "ls": _cmd_list,
+        "extract": _cmd_extract,
+        "x": _cmd_extract,
+        "pack": _cmd_pack,
+        "diff": _cmd_diff,
+    }
+    handler = dispatch.get(args.command)
+    if handler is None:
+        return 1
+    return handler(args)
 
 
 if __name__ == "__main__":
