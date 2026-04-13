@@ -199,7 +199,7 @@ wheels = [
 ]
 
 [[package]]
-name = "x4-modding"
+name = "x4cat"
 version = "0.1.0"
 source = { virtual = "." }
 

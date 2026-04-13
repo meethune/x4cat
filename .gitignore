@@ -2,6 +2,12 @@ __pycache__/
 *.pyc
 .venv/
 *.egg-info/
+dist/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+
+# X4 game files (don't commit these)
+*.cat
+*.dat
+*.zip
