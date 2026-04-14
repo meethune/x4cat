@@ -7,6 +7,8 @@ import sys
 import xml.etree.ElementTree as ET
 from typing import TYPE_CHECKING
 
+import pytest
+
 from tests.conftest import _xml
 from x4_catalog._xmldiff import generate_diff
 
@@ -300,6 +302,12 @@ class TestCombinedScenarios:
         root = ET.fromstring(result)
         assert root.tag == "diff"
 
+    def test_root_mismatch_raises(self) -> None:
+        base = _xml("<wares/>")
+        mod = _xml("<jobs/>")
+        with pytest.raises(ValueError, match="[Rr]oot"):
+            generate_diff(base, mod)
+
 
 # --- CLI integration ---
 
@@ -366,6 +374,23 @@ class TestXmldiffCli:
         assert out.exists()
         root = ET.parse(out).getroot()
         assert root.tag == "diff"
+
+    def test_xmldiff_nonexistent_file(self, tmp_path: Path) -> None:
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "x4_catalog",
+                "xmldiff",
+                "--base",
+                str(tmp_path / "missing.xml"),
+                "--mod",
+                str(tmp_path / "also_missing.xml"),
+            ],
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode != 0
 
     def test_xmldiff_no_changes(self, tmp_path: Path) -> None:
         f = tmp_path / "same.xml"
