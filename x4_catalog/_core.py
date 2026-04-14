@@ -591,6 +591,105 @@ def _cmd_search(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_scaffold(args: argparse.Namespace) -> int:
+    scaffold_type = args.scaffold_type
+    if scaffold_type is None:
+        print("error: specify 'ware', 'equipment', or 'ship'", file=sys.stderr)
+        return 1
+
+    output_dir = Path(args.output) if args.output else Path.cwd() / "src"
+
+    if scaffold_type == "ware":
+        from x4_catalog._scaffold import scaffold_ware
+
+        files = scaffold_ware(
+            args.id,
+            args.name,
+            output_dir,
+            description=args.description or "",
+            group=args.group or "",
+            volume=args.volume,
+            price_min=args.price_min,
+            price_avg=args.price_avg,
+            price_max=args.price_max,
+        )
+        for f in files:
+            print(f"  {output_dir / f}")
+        return 0
+
+    if scaffold_type == "equipment":
+        from x4_catalog._scaffold import scaffold_equipment
+
+        if not args.clone_from:
+            print(
+                "error: --clone-from is required for equipment scaffolding",
+                file=sys.stderr,
+            )
+            return 1
+
+        db_path = _resolve_index_db(args)
+        if db_path is None:
+            return 1
+
+        try:
+            files = scaffold_equipment(
+                args.id,
+                args.name,
+                output_dir,
+                clone_from=args.clone_from,
+                db_path=db_path,
+                description=args.description or "",
+                price_min=args.price_min,
+                price_avg=args.price_avg,
+                price_max=args.price_max,
+            )
+        except ValueError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 1
+
+        for f in files:
+            print(f"  {output_dir / f}")
+        return 0
+
+    if scaffold_type == "ship":
+        from x4_catalog._scaffold import scaffold_ship
+
+        if not args.clone_from:
+            print(
+                "error: --clone-from is required for ship scaffolding",
+                file=sys.stderr,
+            )
+            return 1
+
+        db_path = _resolve_index_db(args)
+        if db_path is None:
+            return 1
+
+        try:
+            files = scaffold_ship(
+                args.id,
+                args.name,
+                output_dir,
+                clone_from=args.clone_from,
+                db_path=db_path,
+                size=args.size,
+                description=args.description or "",
+                price_min=args.price_min,
+                price_avg=args.price_avg,
+                price_max=args.price_max,
+            )
+        except ValueError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 1
+
+        for f in files:
+            print(f"  {output_dir / f}")
+        return 0
+
+    print(f"error: unknown scaffold type: {scaffold_type}", file=sys.stderr)
+    return 1
+
+
 def _cmd_extract_macro(args: argparse.Namespace) -> int:
     from x4_catalog._extract_macro import extract_macro
 
@@ -788,6 +887,54 @@ def main(argv: list[str] | None = None) -> int:
         help="Treat unsupported XPath warnings as errors",
     )
 
+    # -- scaffold --
+    p_scaffold = sub.add_parser("scaffold", help="Scaffold new mod content")
+    scaffold_sub = p_scaffold.add_subparsers(dest="scaffold_type")
+
+    # scaffold ware
+    p_sw = scaffold_sub.add_parser("ware", help="Scaffold a trade ware (Tier 1)")
+    p_sw.add_argument("--id", required=True, help="Ware ID")
+    p_sw.add_argument("--name", required=True, help="Ware display name")
+    p_sw.add_argument("--description", default=None, help="Ware description")
+    p_sw.add_argument("--group", default=None, help="Ware group (e.g. hightech, energy)")
+    p_sw.add_argument("--volume", type=int, default=1, help="Volume (default: 1)")
+    p_sw.add_argument("--price-min", type=int, default=0, help="Min price")
+    p_sw.add_argument("--price-avg", type=int, default=0, help="Average price")
+    p_sw.add_argument("--price-max", type=int, default=0, help="Max price")
+    p_sw.add_argument("-o", "--output", default=None, help="Output directory")
+
+    # scaffold equipment
+    p_se = scaffold_sub.add_parser(
+        "equipment", help="Scaffold equipment by cloning existing (Tier 2)"
+    )
+    p_se.add_argument("--id", required=True, help="New macro ID")
+    p_se.add_argument("--name", required=True, help="Equipment display name")
+    p_se.add_argument("--clone-from", required=True, help="Macro ID to clone")
+    p_se.add_argument("--description", default=None, help="Description")
+    p_se.add_argument("--price-min", type=int, default=0, help="Min price")
+    p_se.add_argument("--price-avg", type=int, default=0, help="Average price")
+    p_se.add_argument("--price-max", type=int, default=0, help="Max price")
+    p_se.add_argument("-o", "--output", default=None, help="Output directory")
+    p_se.add_argument("--db", default=None, help="Index DB path")
+    p_se.add_argument("--game-dir", default=None, help="Game directory")
+
+    # scaffold ship
+    p_ss = scaffold_sub.add_parser(
+        "ship",
+        help="Scaffold a NEW ship (for stat mods, use extract-macro + xmldiff instead)",
+    )
+    p_ss.add_argument("--id", required=True, help="New macro ID")
+    p_ss.add_argument("--name", required=True, help="Ship display name")
+    p_ss.add_argument("--clone-from", required=True, help="Ship macro ID to clone")
+    p_ss.add_argument("--size", default="s", choices=["s", "m", "l", "xl"], help="Ship size class")
+    p_ss.add_argument("--description", default=None, help="Description")
+    p_ss.add_argument("--price-min", type=int, default=0, help="Min price")
+    p_ss.add_argument("--price-avg", type=int, default=0, help="Average price")
+    p_ss.add_argument("--price-max", type=int, default=0, help="Max price")
+    p_ss.add_argument("-o", "--output", default=None, help="Output directory")
+    p_ss.add_argument("--db", default=None, help="Index DB path")
+    p_ss.add_argument("--game-dir", default=None, help="Game directory")
+
     # -- extract-macro --
     p_emacro = sub.add_parser("extract-macro", help="Extract a macro file by ID")
     p_emacro.add_argument("macro_id", help="Macro name (e.g. ship_arg_s_fighter_01_a_macro)")
@@ -870,6 +1017,7 @@ def main(argv: list[str] | None = None) -> int:
         "inspect": _cmd_inspect,
         "search": _cmd_search,
         "extract-macro": _cmd_extract_macro,
+        "scaffold": _cmd_scaffold,
         "index": _cmd_index,
         "init": _cmd_init,
     }
