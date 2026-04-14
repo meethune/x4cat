@@ -578,6 +578,19 @@ def _resolve_index_db(args: argparse.Namespace) -> Path | None:
     return None
 
 
+def _cmd_search(args: argparse.Namespace) -> int:
+    from x4_catalog._search import format_search_output, search_assets
+
+    db_path = _resolve_index_db(args)
+    if db_path is None:
+        return 1
+
+    type_filter = getattr(args, "type", None)
+    results = search_assets(args.term, db_path, type_filter=type_filter)
+    print(format_search_output(results))
+    return 0
+
+
 def _cmd_inspect(args: argparse.Namespace) -> int:
     from x4_catalog._inspect import format_inspect_output, inspect_asset
 
@@ -743,6 +756,22 @@ def main(argv: list[str] | None = None) -> int:
         help="Treat unsupported XPath warnings as errors",
     )
 
+    # -- search --
+    p_search = sub.add_parser("search", help="Search game assets by ID, group, or tags")
+    p_search.add_argument("term", help="Search term (partial match)")
+    p_search.add_argument("--db", default=None, help="Path to index DB (default: auto-detect)")
+    p_search.add_argument(
+        "--game-dir",
+        default=None,
+        help="Game directory (used to auto-build index if needed)",
+    )
+    p_search.add_argument(
+        "--type",
+        default=None,
+        choices=["ware", "macro", "component"],
+        help="Filter results by type",
+    )
+
     # -- inspect --
     p_inspect = sub.add_parser(
         "inspect", help="Inspect a game asset by ware, macro, or component ID"
@@ -794,6 +823,7 @@ def main(argv: list[str] | None = None) -> int:
         "xmldiff": _cmd_xmldiff,
         "validate-diff": _cmd_validate_diff,
         "inspect": _cmd_inspect,
+        "search": _cmd_search,
         "index": _cmd_index,
         "init": _cmd_init,
     }
