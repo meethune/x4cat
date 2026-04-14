@@ -7,8 +7,11 @@ import shutil
 import subprocess
 from datetime import UTC, datetime
 from pathlib import Path
+from xml.sax.saxutils import escape as xml_escape
 
 _TEMPLATE_DIR = Path(__file__).resolve().parent.parent / "templates" / "extension_poc"
+
+_MOD_ID_RE = re.compile(r"^[a-zA-Z][a-zA-Z0-9_]{0,63}$")
 
 # Files to copy from the template (relative to template root).
 _COPY_FILES = [
@@ -30,15 +33,12 @@ _ENSURE_DIRS = [
 ]
 
 # Files that need text substitution.
-_SUBSTITUTE_FILES = [
+_SUBSTITUTE_FILES = (
     "content.xml",
     "pyproject.toml",
     "README.md",
     "tests/test_mod.py",
-]
-
-# Template-specific files that should NOT be copied.
-_SKIP_FILES = {"uv.lock", "LICENSE", ".git"}
+)
 
 
 def _to_pascal_case(mod_id: str) -> str:
@@ -53,6 +53,11 @@ def _expand_repo_url(repo: str) -> str:
     if "/" in repo and not repo.startswith("/"):
         return f"https://github.com/{repo}"
     return repo
+
+
+def _xml_attr_escape(value: str) -> str:
+    """Escape a string for safe use inside an XML attribute value (double-quoted)."""
+    return xml_escape(value, entities={'"': "&quot;"})
 
 
 def _git_config_get(key: str) -> str | None:
@@ -84,7 +89,14 @@ def scaffold_project(
 
     Returns the path to the created project directory.
     Raises ``FileExistsError`` if the output directory already exists and is non-empty.
+    Raises ``ValueError`` if ``mod_id`` contains invalid characters.
     """
+    if not _MOD_ID_RE.match(mod_id):
+        raise ValueError(
+            f"Invalid mod_id: {mod_id!r} "
+            "(must start with a letter, contain only alphanumeric/underscores, max 64 chars)"
+        )
+
     out = output_dir or Path.cwd() / mod_id
 
     if out.exists() and any(out.iterdir()):
@@ -109,6 +121,10 @@ def scaffold_project(
     pascal_name = _to_pascal_case(mod_id)
     repo_url = _expand_repo_url(repo) if repo else None
 
+    # Escape user-supplied strings for XML attribute safety
+    safe_author = _xml_attr_escape(author)
+    safe_description = _xml_attr_escape(description)
+
     # Create directories
     for d in _ENSURE_DIRS:
         (out / d).mkdir(parents=True, exist_ok=True)
@@ -124,26 +140,32 @@ def scaffold_project(
 
     # Copy MD script with renamed filename
     template_md = _TEMPLATE_DIR / "src" / "md" / "extension_poc.xml"
+    md_rel_path: str | None = None
     if template_md.exists():
-        dest_md = out / "src" / "md" / f"{mod_id}.xml"
+        md_rel_path = f"src/md/{mod_id}.xml"
+        dest_md = out / md_rel_path
         shutil.copy2(template_md, dest_md)
-        _SUBSTITUTE_FILES.append(f"src/md/{mod_id}.xml")
+
+    # Build the list of files to substitute (local copy — never mutate module state)
+    substitute_files = list(_SUBSTITUTE_FILES)
+    if md_rel_path:
+        substitute_files.append(md_rel_path)
 
     # Apply substitutions
-    for rel_path in _SUBSTITUTE_FILES:
+    for rel_path in substitute_files:
         fpath = out / rel_path
         if not fpath.exists():
             continue
         text = fpath.read_text(encoding="utf-8")
 
-        # content.xml specific substitutions
+        # content.xml specific substitutions (use escaped values for XML attributes)
         text = text.replace('id="extension_poc"', f'id="{mod_id}"')
         text = text.replace('name="Extension PoC"', f'name="{mod_id}"')
         text = text.replace(
             'description="Proof of concept X4 extension mod"',
-            f'description="{description}"',
+            f'description="{safe_description}"',
         )
-        text = text.replace('author="Meethune Bhowmick"', f'author="{author}"')
+        text = text.replace('author="Meethune Bhowmick"', f'author="{safe_author}"')
         text = text.replace('date="2026-04-13"', f'date="{today}"')
         text = re.sub(
             r'<dependency version="\d+" />',
@@ -151,7 +173,7 @@ def scaffold_project(
             text,
         )
 
-        # pyproject.toml substitutions
+        # pyproject.toml substitutions (plain text, not XML)
         text = text.replace('name = "extension-poc"', f'name = "{mod_name_hyphen}"')
         text = text.replace(
             'description = "Proof of concept X4: Foundations extension mod"',

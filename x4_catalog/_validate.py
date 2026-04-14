@@ -72,6 +72,12 @@ def parse_diff_ops(data: bytes) -> list[DiffOp]:
     current_line: int = 0
 
     parser = expat.ParserCreate()
+    parser.SetParamEntityParsing(expat.XML_PARAM_ENTITY_PARSING_NEVER)
+
+    def _reject_entity_decl(*_args: object) -> None:
+        raise ValueError("Entity declarations are not allowed in diff patches")
+
+    parser.EntityDeclHandler = _reject_entity_decl
 
     def _start(tag: str, attrs: dict[str, str]) -> None:
         nonlocal depth, root_tag, current_attrs, current_tag, current_line

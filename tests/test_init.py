@@ -122,6 +122,48 @@ class TestScaffoldProject:
         assert not (out / "uv.lock").exists()
         assert not (out / "LICENSE").exists()
 
+    def test_invalid_mod_id_raises(self, tmp_path: Path) -> None:
+        with pytest.raises(ValueError, match="Invalid mod_id"):
+            scaffold_project("../evil", output_dir=tmp_path / "bad")
+
+    def test_mod_id_with_special_chars_raises(self, tmp_path: Path) -> None:
+        with pytest.raises(ValueError, match="Invalid mod_id"):
+            scaffold_project('evil"inject', output_dir=tmp_path / "bad")
+
+    def test_mod_id_starting_with_number_raises(self, tmp_path: Path) -> None:
+        with pytest.raises(ValueError, match="Invalid mod_id"):
+            scaffold_project("123mod", output_dir=tmp_path / "bad")
+
+    def test_author_with_quotes_escaped(self, tmp_path: Path) -> None:
+        out = tmp_path / "my_mod"
+        scaffold_project("my_mod", output_dir=out, author='He said "hello"')
+        text = (out / "content.xml").read_text()
+        assert "&quot;" in text
+        # Should be valid XML
+        import xml.etree.ElementTree as ET
+
+        ET.fromstring(text)
+
+    def test_description_with_xml_chars_escaped(self, tmp_path: Path) -> None:
+        out = tmp_path / "my_mod"
+        scaffold_project("my_mod", output_dir=out, description="A <b>bold</b> & cool mod")
+        text = (out / "content.xml").read_text()
+        assert "&lt;" in text
+        assert "&amp;" in text
+        import xml.etree.ElementTree as ET
+
+        ET.fromstring(text)
+
+    def test_multiple_calls_no_state_leakage(self, tmp_path: Path) -> None:
+        """scaffold_project must not leak state between calls."""
+        out1 = tmp_path / "mod_one"
+        out2 = tmp_path / "mod_two"
+        scaffold_project("mod_one", output_dir=out1)
+        scaffold_project("mod_two", output_dir=out2)
+        # Second project should have its own MD script, not mod_one's
+        assert (out2 / "src" / "md" / "mod_two.xml").is_file()
+        assert not (out2 / "src" / "md" / "mod_one.xml").exists()
+
     def test_existing_directory_raises(self, tmp_path: Path) -> None:
         out = tmp_path / "my_mod"
         out.mkdir()

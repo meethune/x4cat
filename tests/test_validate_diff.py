@@ -133,6 +133,19 @@ class TestParseDiffOps:
         with pytest.raises(ValueError, match="[Pp]arse|XML"):
             parse_diff_ops(b"<not valid xml")
 
+    def test_entity_declaration_rejected(self) -> None:
+        data = _xml("""\
+            <?xml version="1.0" encoding="utf-8"?>
+            <!DOCTYPE diff [
+              <!ENTITY lol "lol">
+            ]>
+            <diff>
+              <replace sel="/root">&lol;</replace>
+            </diff>
+        """)
+        with pytest.raises(ValueError, match="[Ee]ntity"):
+            parse_diff_ops(data)
+
 
 # --- Unit: evaluate_xpath ---
 
