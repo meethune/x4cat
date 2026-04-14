@@ -546,6 +546,54 @@ def _cmd_validate_diff(args: argparse.Namespace) -> int:
     return 0
 
 
+def _resolve_index_db(args: argparse.Namespace) -> Path | None:
+    """Resolve the index DB path from CLI args, auto-building if needed."""
+    from x4_catalog._index import build_index, db_path_for_game_dir, find_index_db
+
+    # Explicit --db flag
+    if getattr(args, "db", None):
+        db_path = Path(args.db)
+        if not db_path.exists() and getattr(args, "game_dir", None):
+            build_index(Path(args.game_dir), db_path)
+            print(f"Index built: {db_path}", file=sys.stderr)
+        return db_path if db_path.exists() else None
+
+    # Auto-build with --game-dir
+    if getattr(args, "game_dir", None):
+        db_path = db_path_for_game_dir(Path(args.game_dir))
+        if not db_path.exists():
+            build_index(Path(args.game_dir), db_path)
+            print(f"Index built: {db_path}", file=sys.stderr)
+        return db_path
+
+    # Find existing index
+    found = find_index_db()
+    if found is not None:
+        return found
+
+    print(
+        "error: no index found. Run 'x4cat index <game_dir>' first, or pass --game-dir",
+        file=sys.stderr,
+    )
+    return None
+
+
+def _cmd_inspect(args: argparse.Namespace) -> int:
+    from x4_catalog._inspect import format_inspect_output, inspect_asset
+
+    db_path = _resolve_index_db(args)
+    if db_path is None:
+        return 1
+
+    result = inspect_asset(args.asset_id, db_path)
+    if result is None:
+        print(f"Not found: {args.asset_id}", file=sys.stderr)
+        return 1
+
+    print(format_inspect_output(result))
+    return 0
+
+
 def _cmd_index(args: argparse.Namespace) -> int:
     from x4_catalog._index import build_index, db_path_for_game_dir, is_index_stale
 
@@ -695,6 +743,18 @@ def main(argv: list[str] | None = None) -> int:
         help="Treat unsupported XPath warnings as errors",
     )
 
+    # -- inspect --
+    p_inspect = sub.add_parser(
+        "inspect", help="Inspect a game asset by ware, macro, or component ID"
+    )
+    p_inspect.add_argument("asset_id", help="Ware ID, macro name, or component name")
+    p_inspect.add_argument("--db", default=None, help="Path to index DB (default: auto-detect)")
+    p_inspect.add_argument(
+        "--game-dir",
+        default=None,
+        help="Game directory (used to auto-build index if needed)",
+    )
+
     # -- index --
     p_index = sub.add_parser("index", help="Build a SQLite index of game data")
     p_index.add_argument("game_dir", help="Path to X4 install directory")
@@ -733,6 +793,7 @@ def main(argv: list[str] | None = None) -> int:
         "diff": _cmd_diff,
         "xmldiff": _cmd_xmldiff,
         "validate-diff": _cmd_validate_diff,
+        "inspect": _cmd_inspect,
         "index": _cmd_index,
         "init": _cmd_init,
     }
