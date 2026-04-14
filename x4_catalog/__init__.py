@@ -20,12 +20,14 @@ from x4_catalog._validate import (
     validate_diff_directory,
     validate_diff_file,
 )
+from x4_catalog._xmldiff import generate_diff
 
 __all__ = [
     "CatEntry",
     "DiffOp",
     "FileValidationReport",
     "ValidationResult",
+    "generate_diff",
     "build_vfs",
     "build_vfs_multi",
     "diff_and_pack",

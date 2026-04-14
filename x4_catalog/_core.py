@@ -535,6 +535,24 @@ def _cmd_validate_diff(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_xmldiff(args: argparse.Namespace) -> int:
+    from x4_catalog._xmldiff import generate_diff
+
+    base_data = Path(args.base).read_bytes()
+    mod_data = Path(args.mod).read_bytes()
+    result = generate_diff(base_data, mod_data)
+
+    if args.output:
+        out = Path(args.output)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_bytes(result)
+        print(f"Diff patch written to {out}")
+    else:
+        sys.stdout.buffer.write(result)
+        sys.stdout.buffer.write(b"\n")
+    return 0
+
+
 def _cmd_diff(args: argparse.Namespace) -> int:
     if not args.output:
         print("error: -o / --output is required for diff", file=sys.stderr)
@@ -591,6 +609,12 @@ def main(argv: list[str] | None = None) -> int:
     p_diff.add_argument("--mod", required=True, help="Modified directory")
     p_diff.add_argument("-o", "--output", default=None, help="Output .cat path (required)")
 
+    # -- xmldiff --
+    p_xmldiff = sub.add_parser("xmldiff", help="Generate an XML diff patch from two XML files")
+    p_xmldiff.add_argument("--base", required=True, help="Base/original XML file")
+    p_xmldiff.add_argument("--mod", required=True, help="Modified XML file")
+    p_xmldiff.add_argument("-o", "--output", default=None, help="Output diff patch file")
+
     # -- validate-diff --
     p_vdiff = sub.add_parser(
         "validate-diff", help="Validate XML diff patches against base game files"
@@ -612,6 +636,7 @@ def main(argv: list[str] | None = None) -> int:
         "x": _cmd_extract,
         "pack": _cmd_pack,
         "diff": _cmd_diff,
+        "xmldiff": _cmd_xmldiff,
         "validate-diff": _cmd_validate_diff,
     }
     handler = dispatch.get(args.command)
