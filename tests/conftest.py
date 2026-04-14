@@ -1,8 +1,9 @@
-"""Shared fixtures for X4 catalog tests."""
+"""Shared fixtures and helpers for X4 catalog tests."""
 
 from __future__ import annotations
 
 import hashlib
+import textwrap
 from typing import TYPE_CHECKING
 
 import pytest
@@ -13,6 +14,11 @@ if TYPE_CHECKING:
 
 def _md5(data: bytes) -> str:
     return hashlib.md5(data).hexdigest()
+
+
+def _xml(text: str) -> bytes:
+    """Dedent and encode XML text."""
+    return textwrap.dedent(text).strip().encode()
 
 
 def _write_cat_dat(

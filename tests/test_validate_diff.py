@@ -4,11 +4,11 @@ from __future__ import annotations
 
 import subprocess
 import sys
-import textwrap
 from typing import TYPE_CHECKING
 
 import pytest
 
+from tests.conftest import _xml
 from x4_catalog._validate import (
     evaluate_xpath,
     parse_diff_ops,
@@ -18,11 +18,6 @@ from x4_catalog._validate import (
 
 if TYPE_CHECKING:
     from pathlib import Path
-
-
-def _xml(text: str) -> bytes:
-    """Dedent and encode XML text."""
-    return textwrap.dedent(text).strip().encode()
 
 
 # --- Unit: parse_diff_ops ---

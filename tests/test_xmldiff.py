@@ -4,18 +4,14 @@ from __future__ import annotations
 
 import subprocess
 import sys
-import textwrap
 import xml.etree.ElementTree as ET
 from typing import TYPE_CHECKING
 
+from tests.conftest import _xml
 from x4_catalog._xmldiff import generate_diff
 
 if TYPE_CHECKING:
     from pathlib import Path
-
-
-def _xml(text: str) -> bytes:
-    return textwrap.dedent(text).strip().encode()
 
 
 def _diff_ops(diff_bytes: bytes) -> list[ET.Element]:

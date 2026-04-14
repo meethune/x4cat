@@ -200,10 +200,16 @@ def _filter_entries(
     if glob_pattern is not None:
         result = [e for e in result if fnmatch(e.path, glob_pattern)]
     if include_re is not None:
-        compiled = re.compile(include_re)
+        try:
+            compiled = re.compile(include_re)
+        except re.error as exc:
+            raise ValueError(f"Invalid --include regex: {exc}") from exc
         result = [e for e in result if compiled.search(e.path)]
     if exclude_re is not None:
-        compiled = re.compile(exclude_re)
+        try:
+            compiled = re.compile(exclude_re)
+        except re.error as exc:
+            raise ValueError(f"Invalid --exclude regex: {exc}") from exc
         result = [e for e in result if not compiled.search(e.path)]
     return result
 
