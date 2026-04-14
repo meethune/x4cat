@@ -13,6 +13,7 @@ from x4_catalog._core import (
     pack_catalog,
     parse_cat_line,
 )
+from x4_catalog._index import build_index, db_path_for_game_dir, is_index_stale, open_index
 from x4_catalog._init import scaffold_project
 from x4_catalog._validate import (
     DiffOp,
@@ -28,15 +29,19 @@ __all__ = [
     "DiffOp",
     "FileValidationReport",
     "ValidationResult",
+    "build_index",
     "build_vfs",
     "build_vfs_multi",
     "diff_and_pack",
     "diff_file_sets",
     "extract_to_disk",
+    "db_path_for_game_dir",
     "generate_diff",
+    "is_index_stale",
     "iter_cat_files",
     "list_entries",
     "main",
+    "open_index",
     "pack_catalog",
     "parse_cat_line",
     "scaffold_project",

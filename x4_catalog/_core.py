@@ -546,6 +546,30 @@ def _cmd_validate_diff(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_index(args: argparse.Namespace) -> int:
+    from x4_catalog._index import build_index, db_path_for_game_dir, is_index_stale
+
+    game_dir = Path(args.game_dir)
+    db_path = Path(args.output) if args.output else db_path_for_game_dir(game_dir)
+
+    if db_path.exists() and not args.refresh and not is_index_stale(game_dir, db_path):
+        print(f"Index is up to date: {db_path}")
+        return 0
+
+    import sqlite3
+
+    build_index(game_dir, db_path)
+
+    conn = sqlite3.connect(db_path)
+    macro_count = conn.execute("SELECT COUNT(*) FROM macros").fetchone()[0]
+    comp_count = conn.execute("SELECT COUNT(*) FROM components").fetchone()[0]
+    ware_count = conn.execute("SELECT COUNT(*) FROM wares").fetchone()[0]
+    conn.close()
+
+    print(f"Indexed {macro_count} macros, {comp_count} components, {ware_count} wares → {db_path}")
+    return 0
+
+
 def _cmd_init(args: argparse.Namespace) -> int:
     from x4_catalog._init import scaffold_project
 
@@ -671,6 +695,16 @@ def main(argv: list[str] | None = None) -> int:
         help="Treat unsupported XPath warnings as errors",
     )
 
+    # -- index --
+    p_index = sub.add_parser("index", help="Build a SQLite index of game data")
+    p_index.add_argument("game_dir", help="Path to X4 install directory")
+    p_index.add_argument(
+        "-o", "--output", default=None, help="Output DB path (default: ~/.cache/x4cat/)"
+    )
+    p_index.add_argument(
+        "--refresh", action="store_true", help="Force rebuild even if index is up to date"
+    )
+
     # -- init --
     p_init = sub.add_parser("init", help="Scaffold a new X4 mod project")
     p_init.add_argument("mod_id", help="Mod identifier (e.g. my_awesome_mod)")
@@ -699,6 +733,7 @@ def main(argv: list[str] | None = None) -> int:
         "diff": _cmd_diff,
         "xmldiff": _cmd_xmldiff,
         "validate-diff": _cmd_validate_diff,
+        "index": _cmd_index,
         "init": _cmd_init,
     }
     handler = dispatch.get(args.command)
