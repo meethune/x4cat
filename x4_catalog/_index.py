@@ -54,6 +54,14 @@ CREATE TABLE IF NOT EXISTS ware_owners (
     PRIMARY KEY (ware_id, faction),
     FOREIGN KEY (ware_id) REFERENCES wares(ware_id)
 );
+
+CREATE TABLE IF NOT EXISTS macro_properties (
+    macro_name    TEXT NOT NULL,
+    property_key  TEXT NOT NULL,
+    property_val  TEXT NOT NULL DEFAULT '',
+    PRIMARY KEY (macro_name, property_key),
+    FOREIGN KEY (macro_name) REFERENCES macros(name)
+);
 """
 
 
@@ -158,6 +166,82 @@ def _index_wares(conn: sqlite3.Connection, vfs: dict[str, CatEntry]) -> int:
     return count
 
 
+def _vfs_get_ci(vfs: dict[str, CatEntry], path: str) -> CatEntry | None:
+    """Case-insensitive VFS lookup (index paths may differ in casing from VFS)."""
+    entry = vfs.get(path)
+    if entry is not None:
+        return entry
+    path_lower = path.lower()
+    for vpath, ent in vfs.items():
+        if vpath.lower() == path_lower:
+            return ent
+    return None
+
+
+def _index_macro_properties(conn: sqlite3.Connection, vfs: dict[str, CatEntry]) -> int:
+    """Scan individual macro files and index their properties."""
+    rows = conn.execute("SELECT name, value FROM macros").fetchall()
+    count = 0
+    for name, value in rows:
+        vpath = value + ".xml"
+        entry = _vfs_get_ci(vfs, vpath)
+        if entry is None:
+            continue
+        try:
+            data = _read_payload(entry)
+            root = ET.fromstring(data)
+        except (OSError, ET.ParseError):
+            continue
+        macro = root.find("macro")
+        if macro is None:
+            continue
+        # Store class attribute
+        macro_class = macro.get("class", "")
+        if macro_class:
+            conn.execute(
+                "INSERT OR REPLACE INTO macro_properties VALUES (?, ?, ?)",
+                (name, "class", macro_class),
+            )
+        # Store component ref
+        comp = macro.find("component")
+        if comp is not None and comp.get("ref"):
+            conn.execute(
+                "INSERT OR REPLACE INTO macro_properties VALUES (?, ?, ?)",
+                (name, "component_ref", comp.get("ref", "")),
+            )
+        # Store properties as element.attr keys
+        props = macro.find("properties")
+        if props is None:
+            continue
+        for elem in props:
+            if elem.attrib:
+                for attr, val in elem.attrib.items():
+                    conn.execute(
+                        "INSERT OR REPLACE INTO macro_properties VALUES (?, ?, ?)",
+                        (name, f"{elem.tag}.{attr}", val),
+                    )
+                count += 1
+            elif elem.text and elem.text.strip():
+                conn.execute(
+                    "INSERT OR REPLACE INTO macro_properties VALUES (?, ?, ?)",
+                    (name, elem.tag, elem.text.strip()),
+                )
+                count += 1
+    return count
+
+
+def find_index_db() -> Path | None:
+    """Find an existing index DB in the default cache directory.
+
+    Returns the path to the most recently modified ``.db`` file,
+    or ``None`` if no index exists.
+    """
+    if not DEFAULT_CACHE_DIR.exists():
+        return None
+    dbs = sorted(DEFAULT_CACHE_DIR.glob("*.db"), key=lambda p: p.stat().st_mtime)
+    return dbs[-1] if dbs else None
+
+
 def build_index(game_dir: Path, db_path: Path) -> Path:
     """Build a SQLite index from game files.
 
@@ -183,16 +267,18 @@ def build_index(game_dir: Path, db_path: Path) -> Path:
         macro_count = _index_macros(conn, vfs)
         comp_count = _index_components(conn, vfs)
         ware_count = _index_wares(conn, vfs)
+        prop_count = _index_macro_properties(conn, vfs)
 
         conn.commit()
     finally:
         conn.close()
 
     logger.info(
-        "Indexed %d macros, %d components, %d wares from %s",
+        "Indexed %d macros, %d components, %d wares, %d properties from %s",
         macro_count,
         comp_count,
         ware_count,
+        prop_count,
         game_dir,
     )
     return db_path
