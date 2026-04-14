@@ -1,8 +1,8 @@
 title: x4cat
-description: Linux/cross-platform CLI for X4: Foundations .cat/.dat archives
+description: "Linux/cross-platform CLI for X4: Foundations .cat/.dat archives"
 remote_theme: just-the-docs/just-the-docs
 
-url: https://meethune.github.io/x4cat
+url: "https://meethune.github.io/x4cat"
 
 aux_links:
   GitHub: "https://github.com/meethune/x4cat"
