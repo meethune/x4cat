@@ -1,0 +1,3 @@
+[submodule "templates/extension_poc"]
+	path = templates/extension_poc
+	url = https://github.com/meethune/extension_poc.git
