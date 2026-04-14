@@ -7,7 +7,7 @@ Format (per community docs and Egosoft's XRCatTool readme):
 - The matching .dat file stores file payloads consecutively in .cat line order.
 - Later numbered catalogs override earlier ones for the same virtual path.
 - Extensions use ``ext_NN.cat`` (extension-local) and ``subst_NN.cat`` (base-game override).
-- Version-specific catalogs (``ext_vNNN.cat``, ``subst_vNNN.cat``) are supported.
+- Version-specific catalogs (``ext_vNNN.cat``, ``subst_vNNN.cat``) are not yet supported.
 
 Usage::
 
@@ -438,13 +438,17 @@ def _add_prefix_arg(parser: argparse.ArgumentParser) -> None:
 
 
 def _cmd_list(args: argparse.Namespace) -> int:
-    entries = list_entries(
-        Path(args.game_dir),
-        glob_pattern=args.glob,
-        prefix=args.prefix,
-        include_re=args.include,
-        exclude_re=args.exclude,
-    )
+    try:
+        entries = list_entries(
+            Path(args.game_dir),
+            glob_pattern=args.glob,
+            prefix=args.prefix,
+            include_re=args.include,
+            exclude_re=args.exclude,
+        )
+    except ValueError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
     for e in entries:
         print(f"{e.size:>12}  {e.path}")
     print(f"\n{len(entries)} file(s)")
@@ -517,13 +521,14 @@ def _cmd_validate_diff(args: argparse.Namespace) -> int:
                 f'{report.virtual_path}:{r.op.line}: {status}  sel="{r.op.sel}"  ({r.sel_detail})'
             )
             if r.if_matched is not None:
-                if_status = "PASS" if r.if_matched else "FAIL"
                 if "unsupported" in r.if_detail.lower():
                     if_status = "WARN"
                     warnings += 1
-                elif not r.if_matched:
-                    # if condition not matching is informational, not a failure
-                    pass
+                elif r.if_matched:
+                    if_status = "PASS"
+                else:
+                    # Unmet if condition means the op is conditionally skipped, not broken
+                    if_status = "INFO"
                 print(
                     f"{report.virtual_path}:{r.op.line}: {if_status}"
                     f'  if="{r.op.if_cond}"  ({r.if_detail})'
@@ -565,9 +570,20 @@ def _cmd_init(args: argparse.Namespace) -> int:
 def _cmd_xmldiff(args: argparse.Namespace) -> int:
     from x4_catalog._xmldiff import generate_diff
 
-    base_data = Path(args.base).read_bytes()
-    mod_data = Path(args.mod).read_bytes()
-    result = generate_diff(base_data, mod_data)
+    base_path, mod_path = Path(args.base), Path(args.mod)
+    if not base_path.is_file():
+        print(f"error: base file not found: {base_path}", file=sys.stderr)
+        return 1
+    if not mod_path.is_file():
+        print(f"error: mod file not found: {mod_path}", file=sys.stderr)
+        return 1
+    base_data = base_path.read_bytes()
+    mod_data = mod_path.read_bytes()
+    try:
+        result = generate_diff(base_data, mod_data)
+    except ValueError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
 
     if args.output:
         out = Path(args.output)
