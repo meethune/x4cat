@@ -535,6 +535,27 @@ def _cmd_validate_diff(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_init(args: argparse.Namespace) -> int:
+    from x4_catalog._init import scaffold_project
+
+    output_dir = Path(args.output) if args.output else None
+    try:
+        out = scaffold_project(
+            args.mod_id,
+            output_dir=output_dir,
+            author=args.author,
+            description=args.description,
+            game_version=args.game_version,
+            repo=args.repo,
+            init_git=args.git,
+        )
+    except FileExistsError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    print(f"Created project: {out}")
+    return 0
+
+
 def _cmd_xmldiff(args: argparse.Namespace) -> int:
     from x4_catalog._xmldiff import generate_diff
 
@@ -628,6 +649,24 @@ def main(argv: list[str] | None = None) -> int:
         help="Treat unsupported XPath warnings as errors",
     )
 
+    # -- init --
+    p_init = sub.add_parser("init", help="Scaffold a new X4 mod project")
+    p_init.add_argument("mod_id", help="Mod identifier (e.g. my_awesome_mod)")
+    p_init.add_argument(
+        "-o", "--output", default=None, help="Output directory (default: ./<mod_id>)"
+    )
+    p_init.add_argument(
+        "--author", default=None, help="Author name (default: git config user.name)"
+    )
+    p_init.add_argument("--description", default=None, help="Mod description")
+    p_init.add_argument(
+        "--game-version", type=int, default=900, help="Minimum game version (default: 900)"
+    )
+    p_init.add_argument(
+        "--repo", default=None, help="Repository URL or GitHub shorthand (user/repo)"
+    )
+    p_init.add_argument("--git", action="store_true", help="Initialize a git repository")
+
     args = parser.parse_args(argv)
     dispatch: dict[str, _CmdHandler] = {
         "list": _cmd_list,
@@ -638,6 +677,7 @@ def main(argv: list[str] | None = None) -> int:
         "diff": _cmd_diff,
         "xmldiff": _cmd_xmldiff,
         "validate-diff": _cmd_validate_diff,
+        "init": _cmd_init,
     }
     handler = dispatch.get(args.command)
     if handler is None:
