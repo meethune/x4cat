@@ -23,6 +23,7 @@ from x4_catalog._index import (
 )
 from x4_catalog._init import scaffold_project
 from x4_catalog._inspect import inspect_asset
+from x4_catalog._scaffold import scaffold_equipment, scaffold_ship, scaffold_ware
 from x4_catalog._search import search_assets
 from x4_catalog._validate import (
     DiffOp,
@@ -56,7 +57,10 @@ __all__ = [
     "open_index",
     "pack_catalog",
     "parse_cat_line",
+    "scaffold_equipment",
     "scaffold_project",
+    "scaffold_ship",
+    "scaffold_ware",
     "search_assets",
     "validate_diff_directory",
     "validate_diff_file",
