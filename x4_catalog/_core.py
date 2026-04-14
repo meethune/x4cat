@@ -591,6 +591,38 @@ def _cmd_search(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_extract_macro(args: argparse.Namespace) -> int:
+    from x4_catalog._extract_macro import extract_macro
+
+    db_path = _resolve_index_db(args)
+    if db_path is None:
+        return 1
+
+    # Resolve game_dir: explicit flag, or from index meta
+    game_dir_str = getattr(args, "game_dir", None)
+    if not game_dir_str:
+        import sqlite3
+
+        conn = sqlite3.connect(db_path)
+        row = conn.execute("SELECT value FROM meta WHERE key = 'game_dir'").fetchone()
+        conn.close()
+        if row is None:
+            print("error: cannot determine game directory from index", file=sys.stderr)
+            return 1
+        game_dir_str = row[0]
+
+    game_dir = Path(game_dir_str)
+    output_dir = Path(args.output) if args.output else Path.cwd()
+
+    result = extract_macro(args.macro_id, db_path, game_dir, output_dir)
+    if result is None:
+        print(f"Macro not found: {args.macro_id}", file=sys.stderr)
+        return 1
+
+    print(f"Extracted: {result}")
+    return 0
+
+
 def _cmd_inspect(args: argparse.Namespace) -> int:
     from x4_catalog._inspect import format_inspect_output, inspect_asset
 
@@ -756,6 +788,19 @@ def main(argv: list[str] | None = None) -> int:
         help="Treat unsupported XPath warnings as errors",
     )
 
+    # -- extract-macro --
+    p_emacro = sub.add_parser("extract-macro", help="Extract a macro file by ID")
+    p_emacro.add_argument("macro_id", help="Macro name (e.g. ship_arg_s_fighter_01_a_macro)")
+    p_emacro.add_argument(
+        "-o", "--output", default=None, help="Output directory (default: current dir)"
+    )
+    p_emacro.add_argument("--db", default=None, help="Path to index DB (default: auto-detect)")
+    p_emacro.add_argument(
+        "--game-dir",
+        default=None,
+        help="Game directory (default: from index)",
+    )
+
     # -- search --
     p_search = sub.add_parser("search", help="Search game assets by ID, group, or tags")
     p_search.add_argument("term", help="Search term (partial match)")
@@ -824,6 +869,7 @@ def main(argv: list[str] | None = None) -> int:
         "validate-diff": _cmd_validate_diff,
         "inspect": _cmd_inspect,
         "search": _cmd_search,
+        "extract-macro": _cmd_extract_macro,
         "index": _cmd_index,
         "init": _cmd_init,
     }
