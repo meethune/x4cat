@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-import hashlib
 import subprocess
 import sys
 from typing import TYPE_CHECKING
 
 import pytest
 
+from tests.conftest import _md5
 from x4_catalog import (
     build_vfs,
     build_vfs_multi,
@@ -22,10 +22,6 @@ from x4_catalog import (
 
 if TYPE_CHECKING:
     from pathlib import Path
-
-
-def _md5(data: bytes) -> str:
-    return hashlib.md5(data).hexdigest()
 
 
 # --- Unit: parse_cat_line ---

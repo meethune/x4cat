@@ -60,6 +60,8 @@ def _elements_equal(a: ET.Element, b: ET.Element) -> bool:
         return False
     if (a.text or "").strip() != (b.text or "").strip():
         return False
+    if (a.tail or "").strip() != (b.tail or "").strip():
+        return False
     if len(a) != len(b):
         return False
     return all(_elements_equal(ac, bc) for ac, bc in zip(a, b, strict=True))
@@ -122,7 +124,6 @@ def _diff_element(
 
     # Added keyed elements
     for key in sorted(mod_keyed - base_keyed):
-        op = ET.SubElement(ET.Element("dummy"), "placeholder")  # temp
         op = ET.Element("add", sel=parent_xpath)
         child_copy = _deep_copy(mod_index[key])
         op.append(child_copy)
