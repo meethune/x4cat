@@ -1,0 +1,13 @@
+title: x4cat
+description: Linux/cross-platform CLI for X4: Foundations .cat/.dat archives
+remote_theme: just-the-docs/just-the-docs
+
+url: https://meethune.github.io/x4cat
+
+aux_links:
+  GitHub: https://github.com/meethune/x4cat
+  PyPI: https://github.com/meethune/x4cat#install
+
+footer_content: "x4cat &mdash; MIT License"
+
+search_enabled: true
