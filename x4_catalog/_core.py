@@ -475,6 +475,66 @@ def _cmd_pack(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_validate_diff(args: argparse.Namespace) -> int:
+    from x4_catalog._validate import validate_diff_directory
+
+    game_dir, mod_dir = Path(args.game_dir), Path(args.mod_dir)
+    reports = validate_diff_directory(game_dir, mod_dir, prefix=args.prefix)
+
+    total_ops = 0
+    passed = 0
+    failed = 0
+    warnings = 0
+    skipped_files = 0
+
+    for report in reports:
+        if not report.base_found:
+            skipped_files += 1
+            print(f"{report.virtual_path}: SKIP (no base file found in game VFS)")
+            continue
+        if report.parse_error:
+            failed += 1
+            print(f"{report.virtual_path}: ERROR {report.parse_error}")
+            continue
+        for r in report.results:
+            total_ops += 1
+            if "unsupported" in r.sel_detail.lower():
+                warnings += 1
+                status = "WARN"
+            elif r.sel_matched:
+                passed += 1
+                status = "PASS"
+            else:
+                failed += 1
+                status = "FAIL"
+            print(
+                f'{report.virtual_path}:{r.op.line}: {status}  sel="{r.op.sel}"  ({r.sel_detail})'
+            )
+            if r.if_matched is not None:
+                if_status = "PASS" if r.if_matched else "FAIL"
+                if "unsupported" in r.if_detail.lower():
+                    if_status = "WARN"
+                    warnings += 1
+                elif not r.if_matched:
+                    # if condition not matching is informational, not a failure
+                    pass
+                print(
+                    f"{report.virtual_path}:{r.op.line}: {if_status}"
+                    f'  if="{r.op.if_cond}"  ({r.if_detail})'
+                )
+
+    if reports:
+        print(
+            f"\n{len(reports)} file(s), {total_ops} operation(s): "
+            f"{passed} passed, {failed} failed, {warnings} warning(s), "
+            f"{skipped_files} skipped"
+        )
+
+    if failed > 0 or (args.strict and warnings > 0):
+        return 1
+    return 0
+
+
 def _cmd_diff(args: argparse.Namespace) -> int:
     if not args.output:
         print("error: -o / --output is required for diff", file=sys.stderr)
@@ -531,6 +591,19 @@ def main(argv: list[str] | None = None) -> int:
     p_diff.add_argument("--mod", required=True, help="Modified directory")
     p_diff.add_argument("-o", "--output", default=None, help="Output .cat path (required)")
 
+    # -- validate-diff --
+    p_vdiff = sub.add_parser(
+        "validate-diff", help="Validate XML diff patches against base game files"
+    )
+    p_vdiff.add_argument("game_dir", help="Path to X4 install or extension directory")
+    p_vdiff.add_argument("mod_dir", help="Directory containing diff patch XML files")
+    _add_prefix_arg(p_vdiff)
+    p_vdiff.add_argument(
+        "--strict",
+        action="store_true",
+        help="Treat unsupported XPath warnings as errors",
+    )
+
     args = parser.parse_args(argv)
     dispatch: dict[str, _CmdHandler] = {
         "list": _cmd_list,
@@ -539,6 +612,7 @@ def main(argv: list[str] | None = None) -> int:
         "x": _cmd_extract,
         "pack": _cmd_pack,
         "diff": _cmd_diff,
+        "validate-diff": _cmd_validate_diff,
     }
     handler = dispatch.get(args.command)
     if handler is None:
