@@ -13,6 +13,7 @@ from x4_catalog._core import (
     pack_catalog,
     parse_cat_line,
 )
+from x4_catalog._extract_macro import extract_macro
 from x4_catalog._index import (
     build_index,
     db_path_for_game_dir,
@@ -42,6 +43,7 @@ __all__ = [
     "build_vfs_multi",
     "diff_and_pack",
     "diff_file_sets",
+    "extract_macro",
     "extract_to_disk",
     "db_path_for_game_dir",
     "find_index_db",
