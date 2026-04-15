@@ -41,7 +41,7 @@ nav_order: 14
 </language>
 ```
 
-Or use `x4cat scaffold ware` to generate both files automatically. See the [new ware tutorial](tutorials/new-ware).
+Or use `x4cat scaffold ware` to generate both files automatically. See the [new ware tutorial](../tutorials/new-ware).
 
 ## Modify a game value
 

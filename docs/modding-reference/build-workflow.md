@@ -24,7 +24,7 @@ my_mod/
   pyproject.toml       -- uv project with x4cat dev dependency
 ```
 
-Use `x4cat init <mod_id>` to generate this structure automatically. See the [mod project tutorial](tutorials/mod-project) for a walkthrough.
+Use `x4cat init <mod_id>` to generate this structure automatically. See the [mod project tutorial](../tutorials/mod-project) for a walkthrough.
 
 ## Build commands
 

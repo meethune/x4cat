@@ -13,24 +13,24 @@ A comprehensive reference for developing X4: Foundations mods (extensions). Comp
 
 | Topic | Description |
 |-------|-------------|
-| [Extension Structure](modding-reference/extension-structure) | content.xml manifest, load order, substitution catalogs |
-| [Catalog System](modding-reference/catalog-system) | .cat/.dat format, naming conventions, override semantics |
-| [XML Diff Patching](modding-reference/xml-diff-patching) | add/replace/remove operations, XPath, conditional patching |
-| [Mission Director](modding-reference/mission-director) | MD scripting: cues, events, actions, variables |
-| [AI Scripts](modding-reference/ai-scripts) | Ship/NPC behavior: orders, interrupts, attention levels |
-| [Libraries](modding-reference/libraries) | Game data XML: wares, jobs, factions, modules |
-| [Localization](modding-reference/localization) | Translation files, language codes, text references |
-| [UI / Lua Scripting](modding-reference/ui-lua-scripting) | Lua UI modding, Protected UI Mode, kuertee API |
-| [Maps, Components, Macros](modding-reference/maps-components-macros) | Index files, macro paths, asset structure |
-| [XSD Schemas](modding-reference/xsd-schemas) | Schema hierarchy, extraction, validation |
-| [In-Game References](modding-reference/in-game-references) | scriptproperties.html, jobeditor, VS Code integration |
-| [Build Workflow](modding-reference/build-workflow) | Project structure, build commands, installation |
-| [Debugging](modding-reference/debugging) | Debug log, launch parameters, common errors |
-| [Common Recipes](modding-reference/common-recipes) | Add wares, modify values, MD scripts, NPC jobs, ships |
-| [File Types](modding-reference/file-types) | All file extensions in game archives |
-| [Signature Files](modding-reference/signature-files) | RSA signatures, DRM, impact on mods |
-| [Common Pitfalls](modding-reference/common-pitfalls) | Top 10 recurring modding mistakes |
-| [Quick Reference Links](modding-reference/quick-reference-links) | All official, tool, and community URLs |
+| [Extension Structure](extension-structure) | content.xml manifest, load order, substitution catalogs |
+| [Catalog System](catalog-system) | .cat/.dat format, naming conventions, override semantics |
+| [XML Diff Patching](xml-diff-patching) | add/replace/remove operations, XPath, conditional patching |
+| [Mission Director](mission-director) | MD scripting: cues, events, actions, variables |
+| [AI Scripts](ai-scripts) | Ship/NPC behavior: orders, interrupts, attention levels |
+| [Libraries](libraries) | Game data XML: wares, jobs, factions, modules |
+| [Localization](localization) | Translation files, language codes, text references |
+| [UI / Lua Scripting](ui-lua-scripting) | Lua UI modding, Protected UI Mode, kuertee API |
+| [Maps, Components, Macros](maps-components-macros) | Index files, macro paths, asset structure |
+| [XSD Schemas](xsd-schemas) | Schema hierarchy, extraction, validation |
+| [In-Game References](in-game-references) | scriptproperties.html, jobeditor, VS Code integration |
+| [Build Workflow](build-workflow) | Project structure, build commands, installation |
+| [Debugging](debugging) | Debug log, launch parameters, common errors |
+| [Common Recipes](common-recipes) | Add wares, modify values, MD scripts, NPC jobs, ships |
+| [File Types](file-types) | All file extensions in game archives |
+| [Signature Files](signature-files) | RSA signatures, DRM, impact on mods |
+| [Common Pitfalls](common-pitfalls) | Top 10 recurring modding mistakes |
+| [Quick Reference Links](quick-reference-links) | All official, tool, and community URLs |
 
 ## External resources
 
