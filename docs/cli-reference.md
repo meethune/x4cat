@@ -609,6 +609,70 @@ Creating a truly new ship requires a 3D model and component XML. If you only wan
 
 ---
 
+### scaffold translation
+
+Generate a translation stub for a new language from an existing translation file. Copies the page and entry structure with `[TRANSLATE: original text]` markers.
+
+```
+x4cat scaffold translation --from <source_file> --lang <code> -o <output_file>
+```
+
+**Options:**
+
+| Option | Description |
+|--------|-------------|
+| `--from FILE` | Source translation file (e.g., `t/0001-l044.xml`) |
+| `--lang CODE` | Target language code (e.g., `49` for German, `33` for French) |
+| `-o`, `--output FILE` | Output file path (required) |
+
+**Language codes:** 44=English, 49=German, 33=French, 34=Spanish, 39=Italian, 42=Czech, 48=Polish, 55=Portuguese, 81=Japanese, 82=Korean, 86=Simplified Chinese, 88=Traditional Chinese.
+
+**Example:**
+
+```bash
+# Generate a German translation stub from English
+x4cat scaffold translation --from src/t/0001-l044.xml --lang 49 -o src/t/0001-l049.xml
+```
+
+---
+
+### validate-translations
+
+Validate that all `{pageId,entryId}` text references in mod XML files have matching entries in translation files.
+
+```
+x4cat validate-translations <mod_dir>
+```
+
+**Arguments:**
+
+| Argument | Description |
+|----------|-------------|
+| `mod_dir` | Mod directory to validate |
+
+**Checks performed:**
+- **MISSING** (error) — `{pageId,entryId}` referenced in mod XML but not defined in any `t/*.xml` file
+- **ORPHAN** (warning) — entry defined in translation but never referenced in mod XML
+- **Collision** (warning) — page ID below 90000 may conflict with base game
+- **INCOMPLETE** (warning) — a language file is missing entries that exist in the English translation
+
+Only mod-range page IDs (>= 90000) are checked. References to base game page IDs are ignored since they use the game's own translations.
+
+**Example:**
+
+```bash
+x4cat validate-translations src/
+
+# Output:
+#   MISSING: {90001,10} referenced in mod XML but not defined in any translation file
+#   ORPHAN: {90001,99} defined in translation but not referenced in mod XML
+#   INCOMPLETE: language 49, page 90001 missing entries: [2, 3]
+#
+#   1 error(s), 2 warning(s)
+```
+
+---
+
 ### init
 
 Scaffold a complete mod project from the [extension_poc](https://github.com/meethune/extension_poc) template. Creates a ready-to-build project with `content.xml`, `Makefile`, tests, and directory structure.

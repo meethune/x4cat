@@ -56,6 +56,8 @@ x4cat --help
 | `scaffold ware` | Generate boilerplate for a new trade ware (diff patch + translation file) |
 | `scaffold equipment` | Clone an existing engine/weapon/shield and generate all required files |
 | `scaffold ship` | Clone an existing ship macro with index registration and ware entry |
+| `scaffold translation` | Generate a translation stub for a new language from an existing file |
+| `validate-translations` | Check that all text references have matching translation entries |
 | `init` | Scaffold a complete mod project from a template with Makefile, tests, and CI |
 
 ## Documentation

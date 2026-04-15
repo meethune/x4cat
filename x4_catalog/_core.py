@@ -591,11 +591,45 @@ def _cmd_search(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_validate_translations(args: argparse.Namespace) -> int:
+    from x4_catalog._translations import validate_translations
+
+    mod_dir = Path(args.mod_dir)
+    result = validate_translations(mod_dir)
+
+    for err in result["errors"]:
+        print(f"  {err}")
+    for warn in result["warnings"]:
+        print(f"  {warn}")
+
+    total = len(result["errors"]) + len(result["warnings"])
+    if total:
+        print(f"\n{len(result['errors'])} error(s), {len(result['warnings'])} warning(s)")
+    else:
+        print("All translations valid")
+
+    return 1 if result["errors"] else 0
+
+
 def _cmd_scaffold(args: argparse.Namespace) -> int:
     scaffold_type = args.scaffold_type
     if scaffold_type is None:
-        print("error: specify 'ware', 'equipment', or 'ship'", file=sys.stderr)
+        print(
+            "error: specify 'ware', 'equipment', 'ship', or 'translation'",
+            file=sys.stderr,
+        )
         return 1
+
+    if scaffold_type == "translation":
+        from x4_catalog._translations import scaffold_translation
+
+        output_path = Path(args.output) if args.output else None
+        if output_path is None:
+            print("error: -o / --output is required", file=sys.stderr)
+            return 1
+        scaffold_translation(Path(args.source), output_path, lang_code=args.lang)
+        print(f"  {output_path}")
+        return 0
 
     output_dir = Path(args.output) if args.output else Path.cwd() / "src"
 
@@ -935,6 +969,23 @@ def main(argv: list[str] | None = None) -> int:
     p_ss.add_argument("--db", default=None, help="Index DB path")
     p_ss.add_argument("--game-dir", default=None, help="Game directory")
 
+    # scaffold translation
+    p_st = scaffold_sub.add_parser(
+        "translation", help="Generate a translation stub from an existing file"
+    )
+    p_st.add_argument("--from", dest="source", required=True, help="Source translation file")
+    p_st.add_argument(
+        "--lang", type=int, required=True, help="Target language code (e.g. 49=German)"
+    )
+    p_st.add_argument("-o", "--output", default=None, help="Output file path")
+
+    # -- validate-translations --
+    p_vtrans = sub.add_parser(
+        "validate-translations",
+        help="Validate translation files against text references in mod XML",
+    )
+    p_vtrans.add_argument("mod_dir", help="Mod directory to validate")
+
     # -- extract-macro --
     p_emacro = sub.add_parser("extract-macro", help="Extract a macro file by ID")
     p_emacro.add_argument("macro_id", help="Macro name (e.g. ship_arg_s_fighter_01_a_macro)")
@@ -1018,6 +1069,7 @@ def main(argv: list[str] | None = None) -> int:
         "search": _cmd_search,
         "extract-macro": _cmd_extract_macro,
         "scaffold": _cmd_scaffold,
+        "validate-translations": _cmd_validate_translations,
         "index": _cmd_index,
         "init": _cmd_init,
     }

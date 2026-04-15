@@ -702,3 +702,48 @@ def scaffold_ship(
 ```
 
 Returns a list of generated file paths relative to `output_dir`. Note that creating a new ship also requires a component XML and 3D model -- see the generated `README_SHIP.md` for details.
+
+---
+
+## Translation Validation
+
+### validate_translations
+
+```python
+from x4_catalog import validate_translations
+
+result = validate_translations(Path("./src"))
+# result["errors"]   -- list of missing translation errors
+# result["warnings"] -- list of orphan/collision/incomplete warnings
+```
+
+```python
+def validate_translations(
+    mod_dir: Path,
+) -> dict[str, Any]: ...
+```
+
+Scans all XML files in `mod_dir` for `{pageId,entryId}` references and cross-checks against `t/*.xml` translation files. Only mod-range page IDs (>= 90000) are validated; base game references are ignored.
+
+### scaffold_translation
+
+```python
+from x4_catalog import scaffold_translation
+
+scaffold_translation(
+    Path("src/t/0001-l044.xml"),
+    Path("src/t/0001-l049.xml"),
+    lang_code=49,
+)
+```
+
+```python
+def scaffold_translation(
+    source_path: Path,
+    output_path: Path,
+    *,
+    lang_code: int,
+) -> None: ...
+```
+
+Generates a translation stub for a new language, copying the page/entry structure with `[TRANSLATE: original text]` markers.
