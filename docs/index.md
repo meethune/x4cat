@@ -39,6 +39,7 @@ x4cat --help
 |---------|-------------|
 | `xmldiff` | Generate an X4-compatible `<diff>` patch from two XML files |
 | `validate-diff` | Validate diff patches against base game files, checking XPath selectors |
+| `check-conflicts` | Detect conflicts between multiple mods' overlapping diff patches |
 
 ### Game data index
 

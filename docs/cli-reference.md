@@ -269,6 +269,55 @@ Exit code is 0 if all operations pass, 1 if any fail (or if `--strict` is set an
 
 ---
 
+### check-conflicts
+
+Detect conflicts between two or more mods' diff patches by comparing their XPath selectors.
+
+```
+x4cat check-conflicts <mod_dir1> <mod_dir2> [mod_dir3 ...] [--verbose]
+```
+
+**Arguments:**
+
+| Argument | Description |
+|----------|-------------|
+| `mod_dirs` | Two or more mod directories to compare |
+
+**Options:**
+
+| Option | Description |
+|--------|-------------|
+| `--verbose` | Show safe overlaps (add+add) in addition to conflicts |
+
+**Severity levels:**
+
+| Level | Pattern | Risk |
+|-------|---------|------|
+| **CONFLICT** | `replace` + `replace` on same `sel`, or `remove` on a parent of another mod's `replace`/`add` | Last mod wins, first mod's change is silently lost |
+| **INFO** | Mixed operations on the same `sel` that may interact | Depends on specifics |
+| **SAFE** | Multiple `add` operations to the same parent | No conflict — all children get added |
+
+**Example:**
+
+```bash
+x4cat check-conflicts ./my_mod ./other_mod
+
+# Output:
+#   CONFLICT  libraries/wares.xml  sel="/wares/ware[@id='energy']/price/@max"  mods: my_mod, other_mod
+#
+#   1 shared file(s): 1 conflict(s), 0 safe, 0 info
+
+# With verbose:
+x4cat check-conflicts ./my_mod ./other_mod --verbose
+
+# Also shows:
+#   SAFE      libraries/wares.xml  sel="/wares"  mods: my_mod, other_mod
+```
+
+Exit code is 0 if no conflicts, 1 if any CONFLICT detected.
+
+---
+
 ## Game Data Index
 
 ### index

@@ -1,5 +1,6 @@
 """X4 catalog reader — XRCatTool equivalent for Linux."""
 
+from x4_catalog._conflicts import check_conflicts
 from x4_catalog._core import (
     CatEntry,
     build_vfs,
@@ -37,6 +38,7 @@ from x4_catalog._xmldiff import generate_diff
 
 __all__ = [
     "CatEntry",
+    "check_conflicts",
     "DiffOp",
     "FileValidationReport",
     "ValidationResult",
