@@ -437,21 +437,70 @@ def _add_prefix_arg(parser: argparse.ArgumentParser) -> None:
     )
 
 
+def _list_from_index(db_path: Path, args: argparse.Namespace) -> int:
+    """List files from the SQLite index game_files table."""
+    import re as _re
+    import sqlite3
+    from fnmatch import fnmatch
+
+    conn = sqlite3.connect(db_path)
+    rows = conn.execute(
+        "SELECT virtual_path, size FROM game_files ORDER BY virtual_path"
+    ).fetchall()
+    conn.close()
+
+    glob_pattern = getattr(args, "glob", None)
+    include_re = getattr(args, "include", None)
+    exclude_re = getattr(args, "exclude", None)
+
+    filtered: list[tuple[str, int]] = []
+    inc_compiled = _re.compile(include_re) if include_re else None
+    exc_compiled = _re.compile(exclude_re) if exclude_re else None
+
+    for vpath, size in rows:
+        if glob_pattern and not fnmatch(vpath, glob_pattern):
+            continue
+        if inc_compiled and not inc_compiled.search(vpath):
+            continue
+        if exc_compiled and exc_compiled.search(vpath):
+            continue
+        filtered.append((vpath, size))
+
+    for vpath, size in filtered:
+        print(f"{size:>12}  {vpath}")
+    print(f"\n{len(filtered)} file(s)")
+    return 0
+
+
 def _cmd_list(args: argparse.Namespace) -> int:
-    try:
-        entries = list_entries(
-            Path(args.game_dir),
-            glob_pattern=args.glob,
-            prefix=args.prefix,
-            include_re=args.include,
-            exclude_re=args.exclude,
+    game_dir = getattr(args, "game_dir", None)
+
+    if game_dir:
+        try:
+            entries = list_entries(
+                Path(game_dir),
+                glob_pattern=args.glob,
+                prefix=args.prefix,
+                include_re=args.include,
+                exclude_re=args.exclude,
+            )
+        except ValueError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 1
+        for e in entries:
+            print(f"{e.size:>12}  {e.path}")
+        print(f"\n{len(entries)} file(s)")
+        return 0
+
+    # Index mode
+    db_path = _resolve_index_db(args)
+    if db_path is None:
+        print(
+            "error: provide <game_dir> or --db for index-backed listing",
+            file=sys.stderr,
         )
-    except ValueError as exc:
-        print(f"error: {exc}", file=sys.stderr)
         return 1
-    for e in entries:
-        print(f"{e.size:>12}  {e.path}")
-    print(f"\n{len(entries)} file(s)")
+    return _list_from_index(db_path, args)
     return 0
 
 
@@ -547,32 +596,25 @@ def _cmd_validate_diff(args: argparse.Namespace) -> int:
 
 
 def _resolve_index_db(args: argparse.Namespace) -> Path | None:
-    """Resolve the index DB path from CLI args, auto-building if needed."""
-    from x4_catalog._index import build_index, db_path_for_game_dir, find_index_db
+    """Resolve the index DB path from global --db or auto-detect."""
+    from x4_catalog._index import find_index_db
 
-    # Explicit --db flag
-    if getattr(args, "db", None):
-        db_path = Path(args.db)
-        if not db_path.exists() and getattr(args, "game_dir", None):
-            build_index(Path(args.game_dir), db_path)
-            print(f"Index built: {db_path}", file=sys.stderr)
-        return db_path if db_path.exists() else None
-
-    # Auto-build with --game-dir
-    if getattr(args, "game_dir", None):
-        db_path = db_path_for_game_dir(Path(args.game_dir))
+    # Global --db flag
+    db = getattr(args, "db", None)
+    if db:
+        db_path = Path(db)
         if not db_path.exists():
-            build_index(Path(args.game_dir), db_path)
-            print(f"Index built: {db_path}", file=sys.stderr)
+            print(f"error: index not found: {db_path}", file=sys.stderr)
+            return None
         return db_path
 
-    # Find existing index
+    # Auto-detect from cache
     found = find_index_db()
     if found is not None:
         return found
 
     print(
-        "error: no index found. Run 'x4cat index <game_dir>' first, or pass --game-dir",
+        "error: no index found. Run 'x4cat index <game_dir>' first, or pass --db",
         file=sys.stderr,
     )
     return None
@@ -648,7 +690,8 @@ def _cmd_validate_translations(args: argparse.Namespace) -> int:
     from x4_catalog._translations import validate_translations
 
     mod_dir = Path(args.mod_dir)
-    result = validate_translations(mod_dir)
+    db_path = _resolve_index_db(args)  # optional — used for collision detection
+    result = validate_translations(mod_dir, db_path=db_path)
 
     for err in result["errors"]:
         print(f"  {err}")
@@ -840,12 +883,32 @@ def _cmd_index(args: argparse.Namespace) -> int:
     build_index(game_dir, db_path)
 
     conn = sqlite3.connect(db_path)
-    macro_count = conn.execute("SELECT COUNT(*) FROM macros").fetchone()[0]
-    comp_count = conn.execute("SELECT COUNT(*) FROM components").fetchone()[0]
-    ware_count = conn.execute("SELECT COUNT(*) FROM wares").fetchone()[0]
+
+    tables = ["macros", "components", "wares", "game_files", "schema_groups", "script_properties"]
+    counts: dict[str, int] = {}
+    for table in tables:
+        try:
+            # Table names are hardcoded above — not user input.
+            row = conn.execute(f"SELECT COUNT(*) FROM [{table}]").fetchone()  # noqa: S608
+            counts[table] = int(row[0]) if row else 0
+        except sqlite3.OperationalError:
+            counts[table] = 0
+
+    macro_count = counts["macros"]
+    comp_count = counts["components"]
+    ware_count = counts["wares"]
+    file_count = counts["game_files"]
+    schema_count = counts["schema_groups"]
+    sp_count = counts["script_properties"]
     conn.close()
 
-    print(f"Indexed {macro_count} macros, {comp_count} components, {ware_count} wares → {db_path}")
+    print(
+        f"Indexed {macro_count} macros, {comp_count} components, "
+        f"{ware_count} wares, {file_count} files"
+    )
+    if schema_count:
+        print(f"  + {schema_count} schema rules, {sp_count} script properties")
+    print(f"  → {db_path}")
     return 0
 
 
@@ -922,11 +985,16 @@ def main(argv: list[str] | None = None) -> int:
         prog="x4cat",
         description="List, extract, pack, and diff X4: Foundations .cat/.dat archives.",
     )
+    parser.add_argument(
+        "--db", default=None, help="Path to index DB (supports multiple game versions)"
+    )
     sub = parser.add_subparsers(dest="command", required=True)
 
     # -- list --
     p_list = sub.add_parser("list", aliases=["ls"], help="List archive contents")
-    p_list.add_argument("game_dir", help="Path to X4 install or extension directory")
+    p_list.add_argument(
+        "game_dir", nargs="?", default=None, help="Path to X4 install (optional if --db provided)"
+    )
     _add_filter_args(p_list)
     _add_prefix_arg(p_list)
 
@@ -1002,8 +1070,6 @@ def main(argv: list[str] | None = None) -> int:
     p_se.add_argument("--price-avg", type=int, default=0, help="Average price")
     p_se.add_argument("--price-max", type=int, default=0, help="Max price")
     p_se.add_argument("-o", "--output", default=None, help="Output directory")
-    p_se.add_argument("--db", default=None, help="Index DB path")
-    p_se.add_argument("--game-dir", default=None, help="Game directory")
 
     # scaffold ship
     p_ss = scaffold_sub.add_parser(
@@ -1019,8 +1085,6 @@ def main(argv: list[str] | None = None) -> int:
     p_ss.add_argument("--price-avg", type=int, default=0, help="Average price")
     p_ss.add_argument("--price-max", type=int, default=0, help="Max price")
     p_ss.add_argument("-o", "--output", default=None, help="Output directory")
-    p_ss.add_argument("--db", default=None, help="Index DB path")
-    p_ss.add_argument("--game-dir", default=None, help="Game directory")
 
     # scaffold translation
     p_st = scaffold_sub.add_parser(
@@ -1038,8 +1102,6 @@ def main(argv: list[str] | None = None) -> int:
         help="Validate mod scripts against indexed schema rules",
     )
     p_vschema.add_argument("mod_dir", help="Mod directory containing MD/AI scripts")
-    p_vschema.add_argument("--db", default=None, help="Index DB path")
-    p_vschema.add_argument("--game-dir", default=None, help="Game directory")
 
     # -- check-conflicts --
     p_conflicts = sub.add_parser(
@@ -1066,22 +1128,10 @@ def main(argv: list[str] | None = None) -> int:
     p_emacro.add_argument(
         "-o", "--output", default=None, help="Output directory (default: current dir)"
     )
-    p_emacro.add_argument("--db", default=None, help="Path to index DB (default: auto-detect)")
-    p_emacro.add_argument(
-        "--game-dir",
-        default=None,
-        help="Game directory (default: from index)",
-    )
 
     # -- search --
     p_search = sub.add_parser("search", help="Search game assets by ID, group, or tags")
     p_search.add_argument("term", help="Search term (partial match)")
-    p_search.add_argument("--db", default=None, help="Path to index DB (default: auto-detect)")
-    p_search.add_argument(
-        "--game-dir",
-        default=None,
-        help="Game directory (used to auto-build index if needed)",
-    )
     p_search.add_argument(
         "--type",
         default=None,
@@ -1094,12 +1144,6 @@ def main(argv: list[str] | None = None) -> int:
         "inspect", help="Inspect a game asset by ware, macro, or component ID"
     )
     p_inspect.add_argument("asset_id", help="Ware ID, macro name, or component name")
-    p_inspect.add_argument("--db", default=None, help="Path to index DB (default: auto-detect)")
-    p_inspect.add_argument(
-        "--game-dir",
-        default=None,
-        help="Game directory (used to auto-build index if needed)",
-    )
 
     # -- index --
     p_index = sub.add_parser("index", help="Build a SQLite index of game data")

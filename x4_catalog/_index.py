@@ -66,6 +66,13 @@ CREATE TABLE IF NOT EXISTS macro_properties (
 CREATE TABLE IF NOT EXISTS translation_pages (
     page_id INTEGER PRIMARY KEY
 );
+
+CREATE TABLE IF NOT EXISTS game_files (
+    virtual_path TEXT PRIMARY KEY,
+    size         INTEGER NOT NULL,
+    mtime        INTEGER NOT NULL,
+    md5          TEXT NOT NULL
+);
 """
 
 
@@ -270,6 +277,55 @@ def find_index_db() -> Path | None:
     return dbs[-1] if dbs else None
 
 
+def _index_game_files(conn: sqlite3.Connection, vfs: dict[str, CatEntry]) -> int:
+    """Index all VFS file entries for fast listing."""
+    count = 0
+    for vpath, entry in vfs.items():
+        conn.execute(
+            "INSERT OR REPLACE INTO game_files "
+            "(virtual_path, size, mtime, md5) VALUES (?, ?, ?, ?)",
+            (vpath, entry.size, entry.mtime, entry.md5),
+        )
+        count += 1
+    return count
+
+
+def _index_schemas(
+    conn: sqlite3.Connection, vfs: dict[str, CatEntry], game_dir: Path
+) -> dict[str, int]:
+    """Extract XSD schemas and scriptproperties into the index."""
+    import tempfile
+
+    from x4_catalog._schema_extract import (
+        extract_schema_to_db,
+        extract_scriptproperties_to_db,
+    )
+
+    counts: dict[str, int] = {}
+
+    # Extract XSD files to a temp dir for schema parsing
+    xsd_paths = [k for k in vfs if k.endswith(".xsd")]
+    if xsd_paths:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp = Path(tmpdir)
+            for vpath in xsd_paths:
+                entry = vfs[vpath]
+                dest = tmp / vpath
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                dest.write_bytes(_read_payload(entry))
+            schema_counts = extract_schema_to_db(tmp, conn)
+            counts.update(schema_counts)
+
+    # Index scriptproperties.xml
+    sp_entry = vfs.get("libraries/scriptproperties.xml")
+    if sp_entry is not None:
+        sp_data = _read_payload(sp_entry)
+        sp_counts = extract_scriptproperties_to_db(sp_data, conn)
+        counts.update(sp_counts)
+
+    return counts
+
+
 def build_index(game_dir: Path, db_path: Path) -> Path:
     """Build a SQLite index from game files.
 
@@ -297,18 +353,22 @@ def build_index(game_dir: Path, db_path: Path) -> Path:
         ware_count = _index_wares(conn, vfs)
         prop_count = _index_macro_properties(conn, vfs)
         tpage_count = _index_translation_pages(conn, vfs)
+        file_count = _index_game_files(conn, vfs)
+        _index_schemas(conn, vfs, game_dir)
 
         conn.commit()
     finally:
         conn.close()
 
     logger.info(
-        "Indexed %d macros, %d components, %d wares, %d properties, %d translation pages from %s",
+        "Indexed %d macros, %d components, %d wares, %d properties, "
+        "%d translation pages, %d files from %s",
         macro_count,
         comp_count,
         ware_count,
         prop_count,
         tpage_count,
+        file_count,
         game_dir,
     )
     return db_path
