@@ -591,6 +591,35 @@ def _cmd_search(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_check_conflicts(args: argparse.Namespace) -> int:
+    from x4_catalog._conflicts import check_conflicts
+
+    mod_dirs = [Path(d) for d in args.mod_dirs]
+    result = check_conflicts(mod_dirs)
+
+    for c in result["conflicts"]:
+        mods = ", ".join(c["mods"])
+        print(f'  CONFLICT  {c["file"]}  sel="{c["sel"]}"  mods: {mods}')
+
+    for i in result["info"]:
+        mods = ", ".join(i["mods"])
+        print(f'  INFO      {i["file"]}  sel="{i["sel"]}"  mods: {mods}')
+
+    if args.verbose:
+        for s in result["safe"]:
+            mods = ", ".join(s["mods"])
+            print(f'  SAFE      {s["file"]}  sel="{s["sel"]}"  mods: {mods}')
+
+    print(
+        f"\n{result['files_checked']} shared file(s): "
+        f"{len(result['conflicts'])} conflict(s), "
+        f"{len(result['safe'])} safe, "
+        f"{len(result['info'])} info"
+    )
+
+    return 1 if result["conflicts"] else 0
+
+
 def _cmd_validate_translations(args: argparse.Namespace) -> int:
     from x4_catalog._translations import validate_translations
 
@@ -979,6 +1008,18 @@ def main(argv: list[str] | None = None) -> int:
     )
     p_st.add_argument("-o", "--output", default=None, help="Output file path")
 
+    # -- check-conflicts --
+    p_conflicts = sub.add_parser(
+        "check-conflicts",
+        help="Detect conflicts between multiple mods' diff patches",
+    )
+    p_conflicts.add_argument("mod_dirs", nargs="+", help="Two or more mod directories to compare")
+    p_conflicts.add_argument(
+        "--verbose",
+        action="store_true",
+        help="Show safe overlaps in addition to conflicts",
+    )
+
     # -- validate-translations --
     p_vtrans = sub.add_parser(
         "validate-translations",
@@ -1070,6 +1111,7 @@ def main(argv: list[str] | None = None) -> int:
         "extract-macro": _cmd_extract_macro,
         "scaffold": _cmd_scaffold,
         "validate-translations": _cmd_validate_translations,
+        "check-conflicts": _cmd_check_conflicts,
         "index": _cmd_index,
         "init": _cmd_init,
     }
