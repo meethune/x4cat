@@ -240,3 +240,159 @@ class TestScriptPropertiesExtraction:
         assert counts["datatypes"] >= 150
         assert counts["keywords"] >= 80
         assert counts["properties"] >= 1500
+
+
+# --- Phase 2: Structural validator ---
+
+
+class TestSchemaValidator:
+    def _make_db_with_rules(self, tmp_path: Path) -> Path:
+        """Create a schema DB with some action/condition rules."""
+        db = tmp_path / "schema.db"
+        conn = sqlite3.connect(db)
+        conn.executescript("""
+            CREATE TABLE schema_groups (
+                group_name TEXT NOT NULL,
+                element_name TEXT NOT NULL,
+                PRIMARY KEY (group_name, element_name)
+            );
+            CREATE TABLE schema_attributes (
+                element_name TEXT NOT NULL,
+                attr_name TEXT NOT NULL,
+                attr_type TEXT NOT NULL DEFAULT 'xs:string',
+                use TEXT NOT NULL DEFAULT 'optional',
+                default_val TEXT,
+                PRIMARY KEY (element_name, attr_name)
+            );
+            INSERT INTO schema_groups VALUES ('commonactions', 'debug_text');
+            INSERT INTO schema_groups VALUES ('commonactions', 'set_value');
+            INSERT INTO schema_groups VALUES ('commonactions', 'signal_cue');
+            INSERT INTO schema_groups VALUES ('actions', 'debug_text');
+            INSERT INTO schema_groups VALUES ('actions', 'set_value');
+            INSERT INTO schema_groups VALUES ('actions', 'signal_cue');
+            INSERT INTO schema_groups VALUES ('commonconditions_event', 'event_game_started');
+            INSERT INTO schema_groups VALUES ('commonconditions_event', 'event_game_loaded');
+            INSERT INTO schema_groups VALUES ('commonconditions_nonevent', 'check_value');
+            INSERT INTO schema_attributes
+              VALUES ('set_value', 'name', 'expression', 'required', NULL);
+        """)
+        conn.commit()
+        conn.close()
+        return db
+
+    def test_valid_script_passes(self, tmp_path: Path) -> None:
+        from x4_catalog._schema_validate import validate_schema
+
+        db = self._make_db_with_rules(tmp_path)
+        mod = tmp_path / "mod"
+        (mod / "md").mkdir(parents=True)
+        (mod / "md" / "test.xml").write_bytes(
+            _xml("""\
+            <?xml version="1.0" encoding="utf-8"?>
+            <mdscript name="Test">
+              <cues>
+                <cue name="Start">
+                  <conditions>
+                    <event_game_started/>
+                  </conditions>
+                  <actions>
+                    <debug_text text="'hello'" filter="general"/>
+                  </actions>
+                </cue>
+              </cues>
+            </mdscript>
+        """)
+        )
+        result = validate_schema(mod, db)
+        assert result["errors"] == []
+
+    def test_invalid_action_detected(self, tmp_path: Path) -> None:
+        from x4_catalog._schema_validate import validate_schema
+
+        db = self._make_db_with_rules(tmp_path)
+        mod = tmp_path / "mod"
+        (mod / "md").mkdir(parents=True)
+        (mod / "md" / "test.xml").write_bytes(
+            _xml("""\
+            <?xml version="1.0" encoding="utf-8"?>
+            <mdscript name="Test">
+              <cues>
+                <cue name="Start">
+                  <actions>
+                    <nonexistent_action value="1"/>
+                  </actions>
+                </cue>
+              </cues>
+            </mdscript>
+        """)
+        )
+        result = validate_schema(mod, db)
+        assert len(result["errors"]) >= 1
+        assert "nonexistent_action" in result["errors"][0]
+
+    def test_invalid_condition_detected(self, tmp_path: Path) -> None:
+        from x4_catalog._schema_validate import validate_schema
+
+        db = self._make_db_with_rules(tmp_path)
+        mod = tmp_path / "mod"
+        (mod / "md").mkdir(parents=True)
+        (mod / "md" / "test.xml").write_bytes(
+            _xml("""\
+            <?xml version="1.0" encoding="utf-8"?>
+            <mdscript name="Test">
+              <cues>
+                <cue name="Start">
+                  <conditions>
+                    <fake_event/>
+                  </conditions>
+                  <actions>
+                    <debug_text text="'x'"/>
+                  </actions>
+                </cue>
+              </cues>
+            </mdscript>
+        """)
+        )
+        result = validate_schema(mod, db)
+        assert any("fake_event" in e for e in result["errors"])
+
+    def test_missing_required_attr_warned(self, tmp_path: Path) -> None:
+        from x4_catalog._schema_validate import validate_schema
+
+        db = self._make_db_with_rules(tmp_path)
+        mod = tmp_path / "mod"
+        (mod / "md").mkdir(parents=True)
+        (mod / "md" / "test.xml").write_bytes(
+            _xml("""\
+            <?xml version="1.0" encoding="utf-8"?>
+            <mdscript name="Test">
+              <cues>
+                <cue name="Start">
+                  <actions>
+                    <set_value exact="42"/>
+                  </actions>
+                </cue>
+              </cues>
+            </mdscript>
+        """)
+        )
+        result = validate_schema(mod, db)
+        assert any("name" in w for w in result["warnings"])
+
+    def test_non_script_files_skipped(self, tmp_path: Path) -> None:
+        from x4_catalog._schema_validate import validate_schema
+
+        db = self._make_db_with_rules(tmp_path)
+        mod = tmp_path / "mod"
+        (mod / "libraries").mkdir(parents=True)
+        (mod / "libraries" / "wares.xml").write_bytes(
+            _xml("""\
+            <?xml version="1.0" encoding="utf-8"?>
+            <diff>
+              <add sel="/wares"><ware id="x"/></add>
+            </diff>
+        """)
+        )
+        result = validate_schema(mod, db)
+        assert result["errors"] == []
+        assert result["warnings"] == []

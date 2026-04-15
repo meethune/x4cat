@@ -591,6 +591,30 @@ def _cmd_search(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_validate_schema(args: argparse.Namespace) -> int:
+    from x4_catalog._schema_validate import validate_schema
+
+    db_path = _resolve_index_db(args)
+    if db_path is None:
+        return 1
+
+    mod_dir = Path(args.mod_dir)
+    result = validate_schema(mod_dir, db_path)
+
+    for err in result["errors"]:
+        print(f"  ERROR: {err}")
+    for warn in result["warnings"]:
+        print(f"  WARN:  {warn}")
+
+    total = len(result["errors"]) + len(result["warnings"])
+    if total:
+        print(f"\n{len(result['errors'])} error(s), {len(result['warnings'])} warning(s)")
+    else:
+        print("Schema validation passed")
+
+    return 1 if result["errors"] else 0
+
+
 def _cmd_check_conflicts(args: argparse.Namespace) -> int:
     from x4_catalog._conflicts import check_conflicts
 
@@ -1008,6 +1032,15 @@ def main(argv: list[str] | None = None) -> int:
     )
     p_st.add_argument("-o", "--output", default=None, help="Output file path")
 
+    # -- validate-schema --
+    p_vschema = sub.add_parser(
+        "validate-schema",
+        help="Validate mod scripts against indexed schema rules",
+    )
+    p_vschema.add_argument("mod_dir", help="Mod directory containing MD/AI scripts")
+    p_vschema.add_argument("--db", default=None, help="Index DB path")
+    p_vschema.add_argument("--game-dir", default=None, help="Game directory")
+
     # -- check-conflicts --
     p_conflicts = sub.add_parser(
         "check-conflicts",
@@ -1111,6 +1144,7 @@ def main(argv: list[str] | None = None) -> int:
         "extract-macro": _cmd_extract_macro,
         "scaffold": _cmd_scaffold,
         "validate-translations": _cmd_validate_translations,
+        "validate-schema": _cmd_validate_schema,
         "check-conflicts": _cmd_check_conflicts,
         "index": _cmd_index,
         "init": _cmd_init,

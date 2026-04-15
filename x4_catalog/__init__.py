@@ -25,6 +25,8 @@ from x4_catalog._index import (
 from x4_catalog._init import scaffold_project
 from x4_catalog._inspect import inspect_asset
 from x4_catalog._scaffold import scaffold_equipment, scaffold_ship, scaffold_ware
+from x4_catalog._schema_extract import extract_schema_to_db, extract_scriptproperties_to_db
+from x4_catalog._schema_validate import validate_schema
 from x4_catalog._search import search_assets
 from x4_catalog._translations import scaffold_translation, validate_translations
 from x4_catalog._validate import (
@@ -48,6 +50,8 @@ __all__ = [
     "diff_and_pack",
     "diff_file_sets",
     "extract_macro",
+    "extract_schema_to_db",
+    "extract_scriptproperties_to_db",
     "extract_to_disk",
     "db_path_for_game_dir",
     "find_index_db",
@@ -67,6 +71,7 @@ __all__ = [
     "scaffold_ware",
     "search_assets",
     "validate_diff_directory",
+    "validate_schema",
     "validate_diff_file",
     "validate_translations",
 ]
