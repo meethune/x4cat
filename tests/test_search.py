@@ -151,7 +151,7 @@ class TestSearchCli:
         db = tmp_path / "test.db"
         build_index(game, db)
         result = subprocess.run(
-            [sys.executable, "-m", "x4_catalog", "search", "fighter", "--db", str(db)],
+            [sys.executable, "-m", "x4_catalog", "--db", str(db), "search", "fighter"],
             capture_output=True,
             text=True,
         )
@@ -163,7 +163,7 @@ class TestSearchCli:
         db = tmp_path / "test.db"
         build_index(game, db)
         result = subprocess.run(
-            [sys.executable, "-m", "x4_catalog", "search", "zzzznotfound", "--db", str(db)],
+            [sys.executable, "-m", "x4_catalog", "--db", str(db), "search", "zzzznotfound"],
             capture_output=True,
             text=True,
         )
@@ -179,10 +179,10 @@ class TestSearchCli:
                 sys.executable,
                 "-m",
                 "x4_catalog",
-                "search",
-                "fighter",
                 "--db",
                 str(db),
+                "search",
+                "fighter",
                 "--type",
                 "macro",
             ],
@@ -192,24 +192,19 @@ class TestSearchCli:
         assert result.returncode == 0
         assert "macro" in result.stdout.lower()
 
-    def test_search_auto_builds_index(self, tmp_path: Path) -> None:
-        game = _make_game_dir(tmp_path)
-        db = tmp_path / "auto.db"
+    def test_search_no_index_errors(self, tmp_path: Path) -> None:
+        db = tmp_path / "nonexistent.db"
         result = subprocess.run(
             [
                 sys.executable,
                 "-m",
                 "x4_catalog",
-                "search",
-                "energy",
-                "--game-dir",
-                str(game),
                 "--db",
                 str(db),
+                "search",
+                "energy",
             ],
             capture_output=True,
             text=True,
         )
-        assert result.returncode == 0
-        assert db.exists()
-        assert "energy" in result.stdout.lower()
+        assert result.returncode == 1

@@ -116,12 +116,10 @@ class TestExtractMacroCli:
                 sys.executable,
                 "-m",
                 "x4_catalog",
-                "extract-macro",
-                "ship_test_macro",
                 "--db",
                 str(db),
-                "--game-dir",
-                str(game),
+                "extract-macro",
+                "ship_test_macro",
                 "-o",
                 str(out),
             ],
@@ -140,33 +138,30 @@ class TestExtractMacroCli:
                 sys.executable,
                 "-m",
                 "x4_catalog",
-                "extract-macro",
-                "nonexistent",
                 "--db",
                 str(db),
-                "--game-dir",
-                str(game),
+                "extract-macro",
+                "nonexistent",
             ],
             capture_output=True,
             text=True,
         )
         assert result.returncode == 1
 
-    def test_extract_macro_auto_builds_index(self, tmp_path: Path) -> None:
+    def test_extract_macro_with_prebuilt_index(self, tmp_path: Path) -> None:
         game = _make_game_dir(tmp_path)
-        db = tmp_path / "auto.db"
+        db = tmp_path / "test.db"
+        build_index(game, db)
         out = tmp_path / "output"
         result = subprocess.run(
             [
                 sys.executable,
                 "-m",
                 "x4_catalog",
-                "extract-macro",
-                "ship_test_macro",
-                "--game-dir",
-                str(game),
                 "--db",
                 str(db),
+                "extract-macro",
+                "ship_test_macro",
                 "-o",
                 str(out),
             ],
@@ -174,4 +169,3 @@ class TestExtractMacroCli:
             text=True,
         )
         assert result.returncode == 0
-        assert db.exists()

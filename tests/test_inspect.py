@@ -160,10 +160,10 @@ class TestInspectCli:
                 sys.executable,
                 "-m",
                 "x4_catalog",
-                "inspect",
-                "energycells",
                 "--db",
                 str(db),
+                "inspect",
+                "energycells",
             ],
             capture_output=True,
             text=True,
@@ -181,10 +181,10 @@ class TestInspectCli:
                 sys.executable,
                 "-m",
                 "x4_catalog",
-                "inspect",
-                "ship_test_macro",
                 "--db",
                 str(db),
+                "inspect",
+                "ship_test_macro",
             ],
             capture_output=True,
             text=True,
@@ -202,35 +202,30 @@ class TestInspectCli:
                 sys.executable,
                 "-m",
                 "x4_catalog",
-                "inspect",
-                "nonexistent",
                 "--db",
                 str(db),
+                "inspect",
+                "nonexistent",
             ],
             capture_output=True,
             text=True,
         )
         assert result.returncode == 1
 
-    def test_inspect_auto_builds_index(self, tmp_path: Path) -> None:
-        game = _make_game_dir(tmp_path)
-        db = tmp_path / "auto.db"
-        # No index exists yet — should auto-build with --game-dir
+    def test_inspect_no_index_errors(self, tmp_path: Path) -> None:
+        db = tmp_path / "nonexistent.db"
         result = subprocess.run(
             [
                 sys.executable,
                 "-m",
                 "x4_catalog",
-                "inspect",
-                "energycells",
-                "--game-dir",
-                str(game),
                 "--db",
                 str(db),
+                "inspect",
+                "energycells",
             ],
             capture_output=True,
             text=True,
         )
-        assert result.returncode == 0
-        assert db.exists()
-        assert "energycells" in result.stdout
+        assert result.returncode == 1
+        assert "not found" in result.stderr.lower()
