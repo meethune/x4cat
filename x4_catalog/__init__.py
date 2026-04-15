@@ -25,6 +25,7 @@ from x4_catalog._init import scaffold_project
 from x4_catalog._inspect import inspect_asset
 from x4_catalog._scaffold import scaffold_equipment, scaffold_ship, scaffold_ware
 from x4_catalog._search import search_assets
+from x4_catalog._translations import scaffold_translation, validate_translations
 from x4_catalog._validate import (
     DiffOp,
     FileValidationReport,
@@ -60,8 +61,10 @@ __all__ = [
     "scaffold_equipment",
     "scaffold_project",
     "scaffold_ship",
+    "scaffold_translation",
     "scaffold_ware",
     "search_assets",
     "validate_diff_directory",
     "validate_diff_file",
+    "validate_translations",
 ]

@@ -174,6 +174,39 @@ class TestBuildIndex:
         assert row is not None
         assert str(game) in row[0]
 
+    def test_translation_pages_indexed(self, tmp_path: Path) -> None:
+        from tests.conftest import _write_cat_dat
+
+        game = tmp_path / "game_with_t"
+        game.mkdir()
+        t_xml = (
+            b'<?xml version="1.0" encoding="utf-8"?>\n'
+            b'<language id="44">\n'
+            b'  <page id="1001" title="Interface"><t id="1">Hull</t></page>\n'
+            b'  <page id="20201" title="Wares"><t id="1">Energy</t></page>\n'
+            b"</language>"
+        )
+        idx = b"<index/>"
+        wares = b"<wares/>"
+        _write_cat_dat(
+            game,
+            "01.cat",
+            [
+                ("t/0001-l044.xml", t_xml, 1000000),
+                ("index/macros.xml", idx, 1000000),
+                ("index/components.xml", idx, 1000000),
+                ("libraries/wares.xml", wares, 1000000),
+            ],
+        )
+        db = tmp_path / "test.db"
+        build_index(game, db)
+        conn = sqlite3.connect(db)
+        rows = conn.execute("SELECT page_id FROM translation_pages").fetchall()
+        conn.close()
+        page_ids = {r[0] for r in rows}
+        assert 1001 in page_ids
+        assert 20201 in page_ids
+
     def test_cat_checksums_stored(self, tmp_path: Path) -> None:
         game = _make_game_dir(tmp_path)
         db = tmp_path / "test.db"

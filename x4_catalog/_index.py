@@ -62,6 +62,10 @@ CREATE TABLE IF NOT EXISTS macro_properties (
     PRIMARY KEY (macro_name, property_key),
     FOREIGN KEY (macro_name) REFERENCES macros(name)
 );
+
+CREATE TABLE IF NOT EXISTS translation_pages (
+    page_id INTEGER PRIMARY KEY
+);
 """
 
 
@@ -230,6 +234,30 @@ def _index_macro_properties(conn: sqlite3.Connection, vfs: dict[str, CatEntry]) 
     return count
 
 
+def _index_translation_pages(conn: sqlite3.Connection, vfs: dict[str, CatEntry]) -> int:
+    """Index base game translation page IDs for collision detection."""
+    t_files = [k for k in vfs if k.startswith("t/") and k.endswith(".xml")]
+    page_ids: set[int] = set()
+    for vpath in t_files:
+        try:
+            data = _read_payload(vfs[vpath])
+            root = ET.fromstring(data)
+        except (OSError, ET.ParseError):
+            continue
+        if root.tag != "language":
+            continue
+        for page in root.findall("page"):
+            pid_str = page.get("id", "")
+            if pid_str.isdigit():
+                page_ids.add(int(pid_str))
+    for pid in page_ids:
+        conn.execute(
+            "INSERT OR REPLACE INTO translation_pages (page_id) VALUES (?)",
+            (pid,),
+        )
+    return len(page_ids)
+
+
 def find_index_db() -> Path | None:
     """Find an existing index DB in the default cache directory.
 
@@ -268,17 +296,19 @@ def build_index(game_dir: Path, db_path: Path) -> Path:
         comp_count = _index_components(conn, vfs)
         ware_count = _index_wares(conn, vfs)
         prop_count = _index_macro_properties(conn, vfs)
+        tpage_count = _index_translation_pages(conn, vfs)
 
         conn.commit()
     finally:
         conn.close()
 
     logger.info(
-        "Indexed %d macros, %d components, %d wares, %d properties from %s",
+        "Indexed %d macros, %d components, %d wares, %d properties, %d translation pages from %s",
         macro_count,
         comp_count,
         ware_count,
         prop_count,
+        tpage_count,
         game_dir,
     )
     return db_path
