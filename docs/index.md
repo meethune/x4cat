@@ -40,6 +40,7 @@ x4cat --help
 | `xmldiff` | Generate an X4-compatible `<diff>` patch from two XML files |
 | `validate-diff` | Validate diff patches against base game files, checking XPath selectors |
 | `check-conflicts` | Detect conflicts between multiple mods' overlapping diff patches |
+| `validate-schema` | Validate MD/AI scripts against indexed schema rules (fast, no XSD compilation) |
 
 ### Game data index
 
