@@ -10,6 +10,8 @@ from pathlib import Path
 from xml.sax.saxutils import escape as xml_escape
 
 _TEMPLATE_DIR = Path(__file__).resolve().parent.parent / "templates" / "extension_poc"
+_TEMPLATE_REPO = "https://github.com/meethune/extension_poc.git"
+_TEMPLATE_REF = "1f777d7238a04aa79227279b473d08fb9a8342de"  # pinned to submodule commit
 
 _MOD_ID_RE = re.compile(r"^[a-zA-Z][a-zA-Z0-9_]{0,63}$")
 
@@ -102,11 +104,29 @@ def scaffold_project(
     if out.exists() and any(out.iterdir()):
         raise FileExistsError(f"Directory already exists and is not empty: {out}")
 
-    if not _TEMPLATE_DIR.is_dir():
-        raise RuntimeError(
-            f"Template not found at {_TEMPLATE_DIR}. "
-            "Run 'git submodule update --init' to fetch it."
-        )
+    # Use local submodule if available (dev), otherwise clone from GitHub
+    template_dir = _TEMPLATE_DIR
+    cloned_tmp: Path | None = None
+    if not template_dir.is_dir():
+        import tempfile
+
+        cloned_tmp = Path(tempfile.mkdtemp())
+        tpl_dir = cloned_tmp / "tpl"
+        try:
+            subprocess.run(
+                ["git", "clone", _TEMPLATE_REPO, str(tpl_dir)],
+                capture_output=True,
+                check=True,
+            )
+            subprocess.run(
+                ["git", "-C", str(tpl_dir), "checkout", _TEMPLATE_REF],
+                capture_output=True,
+                check=True,
+            )
+        except (subprocess.CalledProcessError, FileNotFoundError) as exc:
+            shutil.rmtree(cloned_tmp, ignore_errors=True)
+            raise RuntimeError(f"Template not found locally and clone failed: {exc}") from exc
+        template_dir = tpl_dir
 
     # Resolve defaults
     if author is None and init_git:
@@ -131,7 +151,7 @@ def scaffold_project(
 
     # Copy and process files
     for rel_path in _COPY_FILES:
-        src = _TEMPLATE_DIR / rel_path
+        src = template_dir / rel_path
         if not src.exists():
             continue
         dest = out / rel_path
@@ -139,7 +159,7 @@ def scaffold_project(
         shutil.copy2(src, dest)
 
     # Copy MD script with renamed filename
-    template_md = _TEMPLATE_DIR / "src" / "md" / "extension_poc.xml"
+    template_md = template_dir / "src" / "md" / "extension_poc.xml"
     md_rel_path: str | None = None
     if template_md.exists():
         md_rel_path = f"src/md/{mod_id}.xml"
@@ -203,5 +223,9 @@ def scaffold_project(
     # Initialize git repo
     if init_git:
         subprocess.run(["git", "init", str(out)], capture_output=True, check=True)
+
+    # Clean up cloned template if we fetched from GitHub
+    if cloned_tmp is not None:
+        shutil.rmtree(cloned_tmp, ignore_errors=True)
 
     return out

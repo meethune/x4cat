@@ -14,6 +14,15 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_CACHE_DIR = Path.home() / ".cache" / "x4cat"
 
+
+def _safe_int(val: str, default: int = 0) -> int:
+    """Parse an integer from a string, returning *default* on failure."""
+    try:
+        return int(val)
+    except (ValueError, TypeError):
+        return default
+
+
 _SCHEMA_SQL = """\
 CREATE TABLE IF NOT EXISTS meta (
     key   TEXT PRIMARY KEY,
@@ -145,9 +154,9 @@ def _index_wares(conn: sqlite3.Connection, vfs: dict[str, CatEntry]) -> int:
         if not ware_id:
             continue
         price = ware.find("price")
-        price_min = int(price.get("min", "0")) if price is not None else 0
-        price_avg = int(price.get("average", "0")) if price is not None else 0
-        price_max = int(price.get("max", "0")) if price is not None else 0
+        price_min = _safe_int(price.get("min", "0")) if price is not None else 0
+        price_avg = _safe_int(price.get("average", "0")) if price is not None else 0
+        price_max = _safe_int(price.get("max", "0")) if price is not None else 0
 
         conn.execute(
             "INSERT OR REPLACE INTO wares "
@@ -159,7 +168,7 @@ def _index_wares(conn: sqlite3.Connection, vfs: dict[str, CatEntry]) -> int:
                 ware.get("name", ""),
                 ware.get("group", ""),
                 ware.get("transport", ""),
-                int(ware.get("volume", "0")),
+                _safe_int(ware.get("volume", "0")),
                 ware.get("tags", ""),
                 price_min,
                 price_avg,
@@ -177,6 +186,11 @@ def _index_wares(conn: sqlite3.Connection, vfs: dict[str, CatEntry]) -> int:
     return count
 
 
+def _build_lower_vfs(vfs: dict[str, CatEntry]) -> dict[str, CatEntry]:
+    """Build a lowercase-keyed index for case-insensitive lookups."""
+    return {k.lower(): v for k, v in vfs.items()}
+
+
 def _vfs_get_ci(vfs: dict[str, CatEntry], path: str) -> CatEntry | None:
     """Case-insensitive VFS lookup (index paths may differ in casing from VFS)."""
     entry = vfs.get(path)
@@ -191,11 +205,12 @@ def _vfs_get_ci(vfs: dict[str, CatEntry], path: str) -> CatEntry | None:
 
 def _index_macro_properties(conn: sqlite3.Connection, vfs: dict[str, CatEntry]) -> int:
     """Scan individual macro files and index their properties."""
+    lower_vfs = _build_lower_vfs(vfs)
     rows = conn.execute("SELECT name, value FROM macros").fetchall()
     count = 0
     for name, value in rows:
         vpath = value + ".xml"
-        entry = _vfs_get_ci(vfs, vpath)
+        entry = lower_vfs.get(vpath.lower())
         if entry is None:
             continue
         try:

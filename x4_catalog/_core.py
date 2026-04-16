@@ -501,7 +501,6 @@ def _cmd_list(args: argparse.Namespace) -> int:
         )
         return 1
     return _list_from_index(db_path, args)
-    return 0
 
 
 def _cmd_extract(args: argparse.Namespace) -> int:
@@ -883,16 +882,24 @@ def _cmd_index(args: argparse.Namespace) -> int:
     build_index(game_dir, db_path)
 
     conn = sqlite3.connect(db_path)
-
-    tables = ["macros", "components", "wares", "game_files", "schema_groups", "script_properties"]
-    counts: dict[str, int] = {}
-    for table in tables:
-        try:
-            # Table names are hardcoded above — not user input.
-            row = conn.execute(f"SELECT COUNT(*) FROM [{table}]").fetchone()  # noqa: S608
-            counts[table] = int(row[0]) if row else 0
-        except sqlite3.OperationalError:
-            counts[table] = 0
+    try:
+        tables = [
+            "macros",
+            "components",
+            "wares",
+            "game_files",
+            "schema_groups",
+            "script_properties",
+        ]
+        counts: dict[str, int] = {}
+        for table in tables:
+            try:
+                row = conn.execute(f"SELECT COUNT(*) FROM [{table}]").fetchone()  # noqa: S608
+                counts[table] = int(row[0]) if row else 0
+            except sqlite3.OperationalError:
+                counts[table] = 0
+    finally:
+        conn.close()
 
     macro_count = counts["macros"]
     comp_count = counts["components"]
@@ -900,7 +907,6 @@ def _cmd_index(args: argparse.Namespace) -> int:
     file_count = counts["game_files"]
     schema_count = counts["schema_groups"]
     sp_count = counts["script_properties"]
-    conn.close()
 
     print(
         f"Indexed {macro_count} macros, {comp_count} components, "

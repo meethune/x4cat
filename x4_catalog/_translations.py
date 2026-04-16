@@ -11,6 +11,14 @@ if TYPE_CHECKING:
 
 _REF_PATTERN = re.compile(r"\{(\d+),(\d+)\}")
 
+
+def _safe_int(val: str, default: int = 0) -> int:
+    try:
+        return int(val)
+    except (ValueError, TypeError):
+        return default
+
+
 # Base game page IDs are below this threshold.
 # Mods should use page IDs >= 90000 to avoid collisions.
 _MOD_PAGE_THRESHOLD = 90000
@@ -69,17 +77,17 @@ def _parse_translations(
             continue
         if root.tag != "language":
             continue
-        lang_code = int(root.get("id", "0"))
+        lang_code = _safe_int(root.get("id", "0"))
         if lang_code == 0:
             continue
         lang_data = result.setdefault(lang_code, {})
         for page in root.findall("page"):
-            page_id = int(page.get("id", "0"))
+            page_id = _safe_int(page.get("id", "0"))
             if page_id == 0:
                 continue
             page_data = lang_data.setdefault(page_id, {})
             for t in page.findall("t"):
-                entry_id = int(t.get("id", "0"))
+                entry_id = _safe_int(t.get("id", "0"))
                 if entry_id:
                     page_data[entry_id] = t.text or ""
     return result
@@ -91,13 +99,14 @@ def _load_base_game_pages(db_path: Any) -> set[int]:
 
     if db_path is None:
         return set()
+    conn = sqlite3.connect(db_path)
     try:
-        conn = sqlite3.connect(db_path)
         rows = conn.execute("SELECT page_id FROM translation_pages").fetchall()
-        conn.close()
         return {r[0] for r in rows}
     except (sqlite3.OperationalError, sqlite3.DatabaseError):
         return set()
+    finally:
+        conn.close()
 
 
 def _check_page_collisions(
@@ -113,11 +122,11 @@ def _check_page_collisions(
     for page_id in sorted(seen_pages):
         if base_game_pages and page_id in base_game_pages:
             warnings.append(
-                f"Page ID {page_id} collision with base game (exact match found in game index)"
+                f"Page ID {page_id} collides with base game (exact match found in game index)"
             )
         elif page_id < _MOD_PAGE_THRESHOLD:
             warnings.append(
-                f"Page ID {page_id} may collision with base game "
+                f"Page ID {page_id} may collide with base game "
                 f"(base game uses 1001–{_BASE_GAME_MAX_PAGE}, "
                 f"mods should use {_MOD_PAGE_THRESHOLD}+)"
             )
