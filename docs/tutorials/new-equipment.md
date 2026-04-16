@@ -226,4 +226,4 @@ The same workflow applies to all equipment types. The `scaffold equipment` comma
 
 - [Set up a mod project](mod-project) to automate the build pipeline
 - [Modify existing stats](stat-mod) if you only need to tweak an existing item
-- See the [CLI Reference](../cli-reference#scaffold-ship) for ship scaffolding, which follows a similar pattern
+- See the [Scaffolding reference](../cli-reference/scaffolding) for ship scaffolding, which follows a similar pattern
