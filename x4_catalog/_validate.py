@@ -12,7 +12,7 @@ import xml.parsers.expat as expat
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
-from x4_catalog._core import _read_payload, build_vfs
+from x4_catalog._core import build_vfs, read_payload
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -312,7 +312,7 @@ def validate_diff_directory(
             )
             continue
 
-        base_data = _read_payload(entry)
+        base_data = read_payload(entry)
         diff_data = xml_path.read_bytes()
         reports.append(validate_diff_file(diff_data, base_data, xml_path, virtual_path))
 

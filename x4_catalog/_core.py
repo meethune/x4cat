@@ -227,7 +227,7 @@ def list_entries(
     return _filter_entries(entries, glob_pattern, include_re, exclude_re)
 
 
-def _read_payload(entry: CatEntry) -> bytes:
+def read_payload(entry: CatEntry) -> bytes:
     """Read the raw bytes for a single CatEntry from its .dat file.
 
     Verifies the MD5 checksum matches the catalog index.
@@ -273,7 +273,7 @@ def extract_to_disk(
         if not dest.is_relative_to(resolved_output):
             raise ValueError(f"Path traversal detected: {entry.path!r} escapes output directory")
         dest.parent.mkdir(parents=True, exist_ok=True)
-        data = _read_payload(entry)
+        data = read_payload(entry)
         dest.write_bytes(data)
         os.utime(dest, (entry.mtime, entry.mtime))
         written.append(dest)
@@ -594,7 +594,7 @@ def _cmd_validate_diff(args: argparse.Namespace) -> int:
     return 0
 
 
-def _resolve_index_db(args: argparse.Namespace) -> Path | None:
+def _resolve_index_db(args: argparse.Namespace, *, required: bool = True) -> Path | None:
     """Resolve the index DB path from global --db or auto-detect."""
     from x4_catalog._index import find_index_db
 
@@ -603,7 +603,8 @@ def _resolve_index_db(args: argparse.Namespace) -> Path | None:
     if db:
         db_path = Path(db)
         if not db_path.exists():
-            print(f"error: index not found: {db_path}", file=sys.stderr)
+            if required:
+                print(f"error: index not found: {db_path}", file=sys.stderr)
             return None
         return db_path
 
@@ -612,10 +613,11 @@ def _resolve_index_db(args: argparse.Namespace) -> Path | None:
     if found is not None:
         return found
 
-    print(
-        "error: no index found. Run 'x4cat index <game_dir>' first, or pass --db",
-        file=sys.stderr,
-    )
+    if required:
+        print(
+            "error: no index found. Run 'x4cat index <game_dir>' first, or pass --db",
+            file=sys.stderr,
+        )
     return None
 
 
@@ -689,7 +691,7 @@ def _cmd_validate_translations(args: argparse.Namespace) -> int:
     from x4_catalog._translations import validate_translations
 
     mod_dir = Path(args.mod_dir)
-    db_path = _resolve_index_db(args)  # optional — used for collision detection
+    db_path = _resolve_index_db(args, required=False)  # optional — for collision detection
     result = validate_translations(mod_dir, db_path=db_path)
 
     for err in result["errors"]:

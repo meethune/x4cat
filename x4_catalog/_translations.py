@@ -93,7 +93,7 @@ def _parse_translations(
     return result
 
 
-def _load_base_game_pages(db_path: Any) -> set[int]:
+def _load_base_game_pages(db_path: Path | str) -> set[int]:
     """Load base game translation page IDs from the index DB."""
     import sqlite3
 
@@ -135,7 +135,7 @@ def _check_page_collisions(
 
 def validate_translations(
     mod_dir: Path,
-    db_path: Any = None,
+    db_path: Path | str | None = None,
 ) -> dict[str, Any]:
     """Validate translation files against text references in mod XML.
 
@@ -236,11 +236,6 @@ def scaffold_translation(
     out = pathlib.Path(output_path)
     out.parent.mkdir(parents=True, exist_ok=True)
 
-    from x4_catalog._scaffold import _indent_xml
+    from x4_catalog._xml_utils import write_xml
 
-    _indent_xml(new_root)
-    data = (
-        b'<?xml version="1.0" encoding="utf-8"?>\n'
-        + ET.tostring(new_root, encoding="unicode").encode()
-    )
-    out.write_bytes(data)
+    write_xml(out, new_root)

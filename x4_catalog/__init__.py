@@ -13,6 +13,7 @@ from x4_catalog._core import (
     main,
     pack_catalog,
     parse_cat_line,
+    read_payload,
 )
 from x4_catalog._extract_macro import extract_macro
 from x4_catalog._index import (
@@ -64,6 +65,7 @@ __all__ = [
     "open_index",
     "pack_catalog",
     "parse_cat_line",
+    "read_payload",
     "scaffold_equipment",
     "scaffold_project",
     "scaffold_ship",
