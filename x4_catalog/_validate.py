@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 from x4_catalog._core import build_vfs, read_payload
+from x4_catalog._xml_utils import safe_fromstring
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -178,7 +179,7 @@ def evaluate_xpath(base_data: bytes, xpath: str) -> tuple[bool, str]:
     For unsupported XPath features, returns a warning detail instead of crashing.
     """
     try:
-        root = ET.fromstring(base_data)
+        root = safe_fromstring(base_data)
     except ET.ParseError as exc:
         return False, f"base XML parse error: {exc}"
 
@@ -272,12 +273,13 @@ def validate_diff_file(
 
 def _is_diff_xml(path: Path) -> bool:
     """Check if a file is an XML diff patch (has ``<diff>`` root element)."""
+    from x4_catalog._xml_utils import safe_parse
+
     try:
-        for _event, elem in ET.iterparse(path, events=("start",)):
-            return elem.tag == "diff"
-    except ET.ParseError:
+        root = safe_parse(path)
+        return root.tag == "diff"
+    except (ET.ParseError, ValueError):
         return False
-    return False
 
 
 def validate_diff_directory(

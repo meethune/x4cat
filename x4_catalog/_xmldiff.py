@@ -9,6 +9,7 @@ from __future__ import annotations
 import xml.etree.ElementTree as ET
 
 from x4_catalog._xml_utils import indent_xml as _indent
+from x4_catalog._xml_utils import safe_fromstring
 
 _IDENTITY_ATTRS = ("id", "name")
 
@@ -176,8 +177,8 @@ def generate_diff(base_data: bytes, mod_data: bytes) -> bytes:
 
     Returns the diff XML as bytes.
     """
-    base_root = ET.fromstring(base_data)
-    mod_root = ET.fromstring(mod_data)
+    base_root = safe_fromstring(base_data)
+    mod_root = safe_fromstring(mod_data)
 
     if base_root.tag != mod_root.tag:
         raise ValueError(

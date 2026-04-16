@@ -10,6 +10,7 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 from x4_catalog._core import CatEntry, build_vfs, iter_cat_files, read_payload
+from x4_catalog._xml_utils import safe_fromstring
 
 logger = logging.getLogger(__name__)
 
@@ -108,7 +109,7 @@ def _index_macros(conn: sqlite3.Connection, vfs: dict[str, CatEntry]) -> int:
     if entry is None:
         return 0
     data = read_payload(entry)
-    root = ET.fromstring(data)
+    root = safe_fromstring(data)
     count = 0
     for e in root.findall("entry"):
         name = e.get("name", "")
@@ -128,7 +129,7 @@ def _index_components(conn: sqlite3.Connection, vfs: dict[str, CatEntry]) -> int
     if entry is None:
         return 0
     data = read_payload(entry)
-    root = ET.fromstring(data)
+    root = safe_fromstring(data)
     count = 0
     for e in root.findall("entry"):
         name = e.get("name", "")
@@ -148,7 +149,7 @@ def _index_wares(conn: sqlite3.Connection, vfs: dict[str, CatEntry]) -> int:
     if entry is None:
         return 0
     data = read_payload(entry)
-    root = ET.fromstring(data)
+    root = safe_fromstring(data)
     count = 0
     for ware in root.findall("ware"):
         ware_id = ware.get("id", "")
@@ -216,7 +217,7 @@ def _index_macro_properties(conn: sqlite3.Connection, vfs: dict[str, CatEntry]) 
             continue
         try:
             data = read_payload(entry)
-            root = ET.fromstring(data)
+            root = safe_fromstring(data)
         except (OSError, ET.ParseError):
             continue
         macro = root.find("macro")
@@ -264,7 +265,7 @@ def _index_translation_pages(conn: sqlite3.Connection, vfs: dict[str, CatEntry])
     for vpath in t_files:
         try:
             data = read_payload(vfs[vpath])
-            root = ET.fromstring(data)
+            root = safe_fromstring(data)
         except (OSError, ET.ParseError):
             continue
         if root.tag != "language":

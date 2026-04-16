@@ -3,7 +3,35 @@
 from __future__ import annotations
 
 import xml.etree.ElementTree as ET
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+_ENTITY_MARKERS = (b"<!DOCTYPE", b"<!ENTITY")
+
+
+def _check_no_entities(data: bytes) -> None:
+    """Reject XML data containing entity declarations."""
+    upper = data[:4096].upper()  # DOCTYPE must appear near the top
+    for marker in _ENTITY_MARKERS:
+        if marker in upper:
+            raise ValueError(f"XML entity declarations are not allowed ({marker.decode()} found)")
+
+
+def safe_fromstring(data: bytes) -> ET.Element:
+    """Parse XML bytes into an Element, rejecting entity declarations."""
+    _check_no_entities(data)
+    return ET.fromstring(data)
+
+
+def safe_parse(source: Path | str) -> ET.Element:
+    """Parse an XML file, rejecting entity declarations. Returns root element."""
+    import pathlib
+
+    data = pathlib.Path(source).read_bytes()
+    _check_no_entities(data)
+    return ET.fromstring(data)
 
 
 def indent_xml(elem: ET.Element, level: int = 0) -> None:

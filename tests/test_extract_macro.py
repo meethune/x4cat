@@ -118,3 +118,37 @@ class TestExtractMacroCli:
             text=True,
         )
         assert result.returncode == 0
+
+
+class TestExtractMacroPathTraversal:
+    def test_path_traversal_rejected(self, tmp_path: Path) -> None:
+        """A macro with a traversal path should be rejected."""
+        import sqlite3
+
+        # Create a DB with a malicious macro path
+        db = tmp_path / "evil.db"
+        conn = sqlite3.connect(db)
+        conn.execute("CREATE TABLE macros (name TEXT PRIMARY KEY, value TEXT NOT NULL)")
+        conn.execute(
+            "INSERT INTO macros VALUES (?, ?)",
+            ("evil_macro", "../../etc/cron.d/evil"),
+        )
+        conn.execute("CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)")
+        conn.execute("INSERT INTO meta VALUES ('game_dir', ?)", (str(tmp_path),))
+        conn.commit()
+        conn.close()
+
+        # Create a fake game dir with matching VFS entry
+        from tests.conftest import _write_cat_dat
+
+        _write_cat_dat(
+            tmp_path,
+            "01.cat",
+            [("../../etc/cron.d/evil.xml", b"<pwned/>", 1000000)],
+        )
+
+        out = tmp_path / "output"
+        import pytest
+
+        with pytest.raises(ValueError, match="[Pp]ath traversal"):
+            extract_macro("evil_macro", db, tmp_path, out)

@@ -5,6 +5,8 @@ from __future__ import annotations
 import xml.etree.ElementTree as ET
 from typing import TYPE_CHECKING
 
+from x4_catalog._xml_utils import safe_parse
+
 if TYPE_CHECKING:
     import sqlite3
     from pathlib import Path
@@ -64,11 +66,10 @@ def validate_schema(
             continue
 
         try:
-            tree = ET.parse(xml_path)
-        except ET.ParseError:
+            root = safe_parse(xml_path)
+        except (ET.ParseError, ValueError):
             continue
 
-        root = tree.getroot()
         if root.tag not in ("mdscript", "aiscript"):
             continue
 

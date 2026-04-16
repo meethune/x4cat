@@ -9,6 +9,8 @@ from __future__ import annotations
 import xml.etree.ElementTree as ET
 from typing import TYPE_CHECKING
 
+from x4_catalog._xml_utils import safe_fromstring
+
 if TYPE_CHECKING:
     import sqlite3
 
@@ -330,7 +332,7 @@ def extract_scriptproperties_to_db(
         );
     """)
 
-    root = ET.fromstring(scriptprops_data)
+    root = safe_fromstring(scriptprops_data)
 
     dt_count = 0
     for dt in root.findall("datatype"):
