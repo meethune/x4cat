@@ -19,38 +19,6 @@ if TYPE_CHECKING:
 
 _XS = "{http://www.w3.org/2001/XMLSchema}"
 
-_SCHEMA_TABLES_SQL = """\
-CREATE TABLE IF NOT EXISTS schema_elements (
-    element_name  TEXT NOT NULL,
-    parent_context TEXT NOT NULL,
-    type_ref      TEXT NOT NULL DEFAULT '',
-    min_occurs    INTEGER NOT NULL DEFAULT 1,
-    max_occurs    INTEGER,
-    PRIMARY KEY (element_name, parent_context)
-);
-
-CREATE TABLE IF NOT EXISTS schema_attributes (
-    element_name  TEXT NOT NULL,
-    attr_name     TEXT NOT NULL,
-    attr_type     TEXT NOT NULL DEFAULT 'xs:string',
-    use           TEXT NOT NULL DEFAULT 'optional',
-    default_val   TEXT,
-    PRIMARY KEY (element_name, attr_name)
-);
-
-CREATE TABLE IF NOT EXISTS schema_enumerations (
-    type_name TEXT NOT NULL,
-    value     TEXT NOT NULL,
-    PRIMARY KEY (type_name, value)
-);
-
-CREATE TABLE IF NOT EXISTS schema_groups (
-    group_name TEXT NOT NULL,
-    element_name TEXT NOT NULL,
-    PRIMARY KEY (group_name, element_name)
-);
-"""
-
 
 def _parse_max_occurs(val: str | None) -> int | None:
     if val is None or val == "1":
@@ -216,8 +184,6 @@ def extract_schema_to_db(
 
     Returns counts of extracted items.
     """
-    conn.executescript(_SCHEMA_TABLES_SQL)
-
     model = _XsdModel()
 
     # Load schema files (each includes common.xsd via xs:include)
@@ -309,30 +275,6 @@ def extract_scriptproperties_to_db(
     conn: sqlite3.Connection,
 ) -> dict[str, int]:
     """Parse scriptproperties.xml and store in SQLite tables."""
-    conn.executescript("""\
-        CREATE TABLE IF NOT EXISTS script_datatypes (
-            name       TEXT PRIMARY KEY,
-            base_type  TEXT,
-            suffix     TEXT,
-            is_pseudo  INTEGER NOT NULL DEFAULT 0
-        );
-        CREATE TABLE IF NOT EXISTS script_keywords (
-            name        TEXT PRIMARY KEY,
-            description TEXT NOT NULL DEFAULT '',
-            type        TEXT,
-            script      TEXT NOT NULL DEFAULT 'any'
-        );
-        CREATE TABLE IF NOT EXISTS script_properties (
-            owner_name  TEXT NOT NULL,
-            owner_kind  TEXT NOT NULL,
-            prop_name   TEXT NOT NULL,
-            result_desc TEXT NOT NULL DEFAULT '',
-            result_type TEXT,
-            PRIMARY KEY (owner_name, owner_kind, prop_name)
-        );
-        CREATE INDEX IF NOT EXISTS idx_script_properties_owner
-            ON script_properties (owner_name, owner_kind);
-    """)
 
     root = safe_fromstring(scriptprops_data)
 

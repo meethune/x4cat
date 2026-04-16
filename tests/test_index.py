@@ -139,15 +139,15 @@ class TestBuildIndex:
 class TestPerformanceIndexes:
     """Verify that performance indexes are created during build_index."""
 
-    # Indexes created in _SCHEMA_SQL (always present)
-    CORE_INDEXES = [
+    EXPECTED_INDEXES = [
         "idx_macro_properties_key",
         "idx_wares_group",
         "idx_wares_transport",
+        "idx_script_properties_owner",
         "idx_game_files_prefix",
     ]
 
-    def test_core_indexes_exist(self, tmp_path: Path) -> None:
+    def test_indexes_exist(self, tmp_path: Path) -> None:
         game, _ = make_indexed_game_dir(tmp_path)
         db = tmp_path / "test.db"
         build_index(game, db)
@@ -155,39 +155,8 @@ class TestPerformanceIndexes:
         rows = conn.execute("SELECT name FROM sqlite_master WHERE type = 'index'").fetchall()
         conn.close()
         index_names = {r[0] for r in rows}
-        for expected in self.CORE_INDEXES:
+        for expected in self.EXPECTED_INDEXES:
             assert expected in index_names, f"Missing index: {expected}"
-
-    def test_script_properties_index_exists(self, tmp_path: Path) -> None:
-        from tests.conftest import _write_cat_dat
-
-        game = tmp_path / "game_sp"
-        game.mkdir()
-        sp_xml = (
-            b'<?xml version="1.0" encoding="utf-8"?>\n'
-            b"<scriptproperties>\n"
-            b'  <datatype name="ship" type="component">\n'
-            b'    <property name="name" result="readablename" />\n'
-            b"  </datatype>\n"
-            b"</scriptproperties>"
-        )
-        _write_cat_dat(
-            game,
-            "01.cat",
-            [
-                ("index/macros.xml", b"<index/>", 1000000),
-                ("index/components.xml", b"<index/>", 1000000),
-                ("libraries/wares.xml", b"<wares/>", 1000000),
-                ("libraries/scriptproperties.xml", sp_xml, 1000000),
-            ],
-        )
-        db = tmp_path / "test.db"
-        build_index(game, db)
-        conn = sqlite3.connect(db)
-        rows = conn.execute("SELECT name FROM sqlite_master WHERE type = 'index'").fetchall()
-        conn.close()
-        index_names = {r[0] for r in rows}
-        assert "idx_script_properties_owner" in index_names
 
 
 class TestStalenessDetection:

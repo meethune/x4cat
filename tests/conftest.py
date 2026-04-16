@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import sqlite3
 import textwrap
 import xml.etree.ElementTree as ET
 from typing import TYPE_CHECKING
@@ -11,6 +12,15 @@ import pytest
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+
+def create_index_db(db_path: Path) -> sqlite3.Connection:
+    """Create a SQLite connection with the full x4cat index schema applied."""
+    from x4_catalog._index import _SCHEMA_SQL
+
+    conn = sqlite3.connect(db_path)
+    conn.executescript(_SCHEMA_SQL)
+    return conn
 
 
 def _md5(data: bytes) -> str:

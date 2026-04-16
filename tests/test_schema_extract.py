@@ -9,6 +9,7 @@ from pathlib import Path
 
 import pytest
 
+from tests.conftest import create_index_db
 from x4_catalog._schema_extract import (
     extract_schema_to_db,
     extract_scriptproperties_to_db,
@@ -39,7 +40,7 @@ def schema_dir(tmp_path: Path) -> Path:
 class TestSchemaExtraction:
     def test_extraction_is_fast(self, schema_dir: Path, tmp_path: Path) -> None:
         db = tmp_path / "schema.db"
-        conn = sqlite3.connect(db)
+        conn = create_index_db(db)
         t0 = time.time()
         extract_schema_to_db(schema_dir, conn)
         conn.commit()
@@ -50,7 +51,7 @@ class TestSchemaExtraction:
 
     def test_actions_group_resolves(self, schema_dir: Path, tmp_path: Path) -> None:
         db = tmp_path / "schema.db"
-        conn = sqlite3.connect(db)
+        conn = create_index_db(db)
         extract_schema_to_db(schema_dir, conn)
         conn.commit()
         rows = conn.execute(
@@ -61,7 +62,7 @@ class TestSchemaExtraction:
 
     def test_commonactions_group_resolves(self, schema_dir: Path, tmp_path: Path) -> None:
         db = tmp_path / "schema.db"
-        conn = sqlite3.connect(db)
+        conn = create_index_db(db)
         extract_schema_to_db(schema_dir, conn)
         conn.commit()
         rows = conn.execute(
@@ -72,7 +73,7 @@ class TestSchemaExtraction:
 
     def test_enumerations_extracted(self, schema_dir: Path, tmp_path: Path) -> None:
         db = tmp_path / "schema.db"
-        conn = sqlite3.connect(db)
+        conn = create_index_db(db)
         extract_schema_to_db(schema_dir, conn)
         conn.commit()
         rows = conn.execute("SELECT COUNT(DISTINCT type_name) FROM schema_enumerations").fetchone()
@@ -81,7 +82,7 @@ class TestSchemaExtraction:
 
     def test_attributes_extracted(self, schema_dir: Path, tmp_path: Path) -> None:
         db = tmp_path / "schema.db"
-        conn = sqlite3.connect(db)
+        conn = create_index_db(db)
         extract_schema_to_db(schema_dir, conn)
         conn.commit()
         rows = conn.execute("SELECT COUNT(*) FROM schema_attributes").fetchone()
@@ -90,7 +91,7 @@ class TestSchemaExtraction:
 
     def test_signal_cue_is_valid_action(self, schema_dir: Path, tmp_path: Path) -> None:
         db = tmp_path / "schema.db"
-        conn = sqlite3.connect(db)
+        conn = create_index_db(db)
         extract_schema_to_db(schema_dir, conn)
         conn.commit()
         # signal_cue is in md.xsd's specificactions, resolved into actions
@@ -103,7 +104,7 @@ class TestSchemaExtraction:
 
     def test_debug_text_is_valid_action(self, schema_dir: Path, tmp_path: Path) -> None:
         db = tmp_path / "schema.db"
-        conn = sqlite3.connect(db)
+        conn = create_index_db(db)
         extract_schema_to_db(schema_dir, conn)
         conn.commit()
         row = conn.execute(
@@ -155,7 +156,7 @@ class TestSyntheticExtraction:
         )
 
         db = tmp_path / "test.db"
-        conn = sqlite3.connect(db)
+        conn = create_index_db(db)
         extract_schema_to_db(tmp_path / "schemas", conn)
         conn.commit()
 
@@ -196,7 +197,7 @@ class TestScriptPropertiesExtraction:
             </scriptproperties>
         """)
         db = tmp_path / "test.db"
-        conn = sqlite3.connect(db)
+        conn = create_index_db(db)
         counts = extract_scriptproperties_to_db(data, conn)
         conn.commit()
         assert counts["datatypes"] == 2
@@ -217,7 +218,7 @@ class TestScriptPropertiesExtraction:
             </scriptproperties>
         """)
         db = tmp_path / "test.db"
-        conn = sqlite3.connect(db)
+        conn = create_index_db(db)
         counts = extract_scriptproperties_to_db(data, conn)
         conn.commit()
         assert counts["keywords"] == 2
@@ -233,7 +234,7 @@ class TestScriptPropertiesExtraction:
         vfs = build_vfs(_GAME_DIR)
         data = read_payload(vfs["libraries/scriptproperties.xml"])
         db = tmp_path / "test.db"
-        conn = sqlite3.connect(db)
+        conn = create_index_db(db)
         counts = extract_scriptproperties_to_db(data, conn)
         conn.commit()
         conn.close()
