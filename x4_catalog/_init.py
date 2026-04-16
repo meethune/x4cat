@@ -128,104 +128,104 @@ def scaffold_project(
             raise RuntimeError(f"Template not found locally and clone failed: {exc}") from exc
         template_dir = tpl_dir
 
-    # Resolve defaults
-    if author is None and init_git:
-        author = _git_config_get("user.name")
-    if author is None:
-        author = ""
-    if description is None:
-        description = "X4: Foundations extension mod"
+    try:
+        # Resolve defaults
+        if author is None and init_git:
+            author = _git_config_get("user.name")
+        if author is None:
+            author = ""
+        if description is None:
+            description = "X4: Foundations extension mod"
 
-    today = datetime.now(UTC).date().isoformat()
-    mod_name_hyphen = mod_id.replace("_", "-")
-    pascal_name = _to_pascal_case(mod_id)
-    repo_url = _expand_repo_url(repo) if repo else None
+        today = datetime.now(UTC).date().isoformat()
+        mod_name_hyphen = mod_id.replace("_", "-")
+        pascal_name = _to_pascal_case(mod_id)
+        repo_url = _expand_repo_url(repo) if repo else None
 
-    # Escape user-supplied strings for XML attribute safety
-    safe_author = _xml_attr_escape(author)
-    safe_description = _xml_attr_escape(description)
+        # Escape user-supplied strings for XML attribute safety
+        safe_author = _xml_attr_escape(author)
+        safe_description = _xml_attr_escape(description)
 
-    # Create directories
-    for d in _ENSURE_DIRS:
-        (out / d).mkdir(parents=True, exist_ok=True)
+        # Create directories
+        for d in _ENSURE_DIRS:
+            (out / d).mkdir(parents=True, exist_ok=True)
 
-    # Copy and process files
-    for rel_path in _COPY_FILES:
-        src = template_dir / rel_path
-        if not src.exists():
-            continue
-        dest = out / rel_path
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(src, dest)
+        # Copy and process files (skip symlinks for safety)
+        for rel_path in _COPY_FILES:
+            src = template_dir / rel_path
+            if not src.exists() or src.is_symlink():
+                continue
+            dest = out / rel_path
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(src, dest)
 
-    # Copy MD script with renamed filename
-    template_md = template_dir / "src" / "md" / "extension_poc.xml"
-    md_rel_path: str | None = None
-    if template_md.exists():
-        md_rel_path = f"src/md/{mod_id}.xml"
-        dest_md = out / md_rel_path
-        shutil.copy2(template_md, dest_md)
+        # Copy MD script with renamed filename
+        template_md = template_dir / "src" / "md" / "extension_poc.xml"
+        md_rel_path: str | None = None
+        if template_md.exists() and not template_md.is_symlink():
+            md_rel_path = f"src/md/{mod_id}.xml"
+            dest_md = out / md_rel_path
+            shutil.copy2(template_md, dest_md)
 
-    # Build the list of files to substitute (local copy — never mutate module state)
-    substitute_files = list(_SUBSTITUTE_FILES)
-    if md_rel_path:
-        substitute_files.append(md_rel_path)
+        # Build the list of files to substitute (local copy — never mutate module state)
+        substitute_files = list(_SUBSTITUTE_FILES)
+        if md_rel_path:
+            substitute_files.append(md_rel_path)
 
-    # Apply substitutions
-    for rel_path in substitute_files:
-        fpath = out / rel_path
-        if not fpath.exists():
-            continue
-        text = fpath.read_text(encoding="utf-8")
+        # Apply substitutions
+        for rel_path in substitute_files:
+            fpath = out / rel_path
+            if not fpath.exists():
+                continue
+            text = fpath.read_text(encoding="utf-8")
 
-        # content.xml specific substitutions (use escaped values for XML attributes)
-        text = text.replace('id="extension_poc"', f'id="{mod_id}"')
-        text = text.replace('name="Extension PoC"', f'name="{mod_id}"')
-        text = text.replace(
-            'description="Proof of concept X4 extension mod"',
-            f'description="{safe_description}"',
-        )
-        text = text.replace('author="Meethune Bhowmick"', f'author="{safe_author}"')
-        text = text.replace('date="2026-04-13"', f'date="{today}"')
-        text = re.sub(
-            r'<dependency version="\d+" />',
-            f'<dependency version="{game_version}" />',
-            text,
-        )
-
-        # pyproject.toml substitutions (plain text, not XML)
-        text = text.replace('name = "extension-poc"', f'name = "{mod_name_hyphen}"')
-        text = text.replace(
-            'description = "Proof of concept X4: Foundations extension mod"',
-            f'description = "{description}"',
-        )
-        if repo_url:
+            # content.xml specific substitutions (use escaped values for XML attributes)
+            text = text.replace('id="extension_poc"', f'id="{mod_id}"')
+            text = text.replace('name="Extension PoC"', f'name="{mod_id}"')
             text = text.replace(
-                "https://github.com/meethune/extension_poc",
-                repo_url,
+                'description="Proof of concept X4 extension mod"',
+                f'description="{safe_description}"',
             )
-        else:
-            # Remove the repository URL section entirely
+            text = text.replace('author="Meethune Bhowmick"', f'author="{safe_author}"')
+            text = text.replace('date="2026-04-13"', f'date="{today}"')
             text = re.sub(
-                r"\[project\.urls\]\nRepository = \"[^\"]*\"\n\n",
-                "",
+                r'<dependency version="\d+" />',
+                f'<dependency version="{game_version}" />',
                 text,
             )
 
-        # General substitutions (order matters — longer patterns first)
-        text = text.replace("Extension PoC", mod_id)
-        text = text.replace("extension_poc", mod_id)
-        text = text.replace("extension-poc", mod_name_hyphen)
-        text = text.replace("ExtensionPoC", pascal_name)
+            # pyproject.toml substitutions (plain text, not XML)
+            text = text.replace('name = "extension-poc"', f'name = "{mod_name_hyphen}"')
+            text = text.replace(
+                'description = "Proof of concept X4: Foundations extension mod"',
+                f'description = "{description}"',
+            )
+            if repo_url:
+                text = text.replace(
+                    "https://github.com/meethune/extension_poc",
+                    repo_url,
+                )
+            else:
+                # Remove the repository URL section entirely
+                text = re.sub(
+                    r"\[project\.urls\]\nRepository = \"[^\"]*\"\n\n",
+                    "",
+                    text,
+                )
 
-        fpath.write_text(text, encoding="utf-8")
+            # General substitutions (order matters — longer patterns first)
+            text = text.replace("Extension PoC", mod_id)
+            text = text.replace("extension_poc", mod_id)
+            text = text.replace("extension-poc", mod_name_hyphen)
+            text = text.replace("ExtensionPoC", pascal_name)
 
-    # Initialize git repo
-    if init_git:
-        subprocess.run(["git", "init", str(out)], capture_output=True, check=True)
+            fpath.write_text(text, encoding="utf-8")
 
-    # Clean up cloned template if we fetched from GitHub
-    if cloned_tmp is not None:
-        shutil.rmtree(cloned_tmp, ignore_errors=True)
+        # Initialize git repo
+        if init_git:
+            subprocess.run(["git", "init", str(out)], capture_output=True, check=True)
+    finally:
+        if cloned_tmp is not None:
+            shutil.rmtree(cloned_tmp, ignore_errors=True)
 
     return out

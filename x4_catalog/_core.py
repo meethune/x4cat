@@ -226,7 +226,13 @@ def read_payload(entry: CatEntry) -> bytes:
     """Read the raw bytes for a single CatEntry from its .dat file.
 
     Verifies the MD5 checksum matches the catalog index.
+    Raises ``ValueError`` if the entry size exceeds *max_size* (default 500 MB).
     """
+    max_size = 500 * 1024 * 1024  # 500 MB sanity limit
+    if entry.size > max_size:
+        raise ValueError(
+            f"Entry too large: {entry.path} claims {entry.size} bytes (max {max_size})"
+        )
     dat_path = entry.cat_path.with_suffix(".dat")
     with open(dat_path, "rb") as f:
         f.seek(entry.dat_offset)

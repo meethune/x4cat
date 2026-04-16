@@ -327,7 +327,10 @@ def _index_schemas(
             tmp = Path(tmpdir)
             for vpath in xsd_paths:
                 entry = vfs[vpath]
-                dest = tmp / vpath
+                dest = (tmp / vpath).resolve()
+                if not dest.is_relative_to(tmp.resolve()):
+                    logger.warning("Skipping path traversal in XSD: %s", vpath)
+                    continue
                 dest.parent.mkdir(parents=True, exist_ok=True)
                 dest.write_bytes(read_payload(entry))
             schema_counts = extract_schema_to_db(tmp, conn)
