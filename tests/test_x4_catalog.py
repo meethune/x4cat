@@ -256,9 +256,9 @@ class TestPackCatalog:
         pack_catalog(src, cat_path)
 
         vfs = build_vfs(tmp_path)
-        from x4_catalog._core import _read_payload
+        from x4_catalog._core import read_payload
 
-        data = _read_payload(vfs["data.txt"])
+        data = read_payload(vfs["data.txt"])
         assert data == b"test content"
 
     def test_pack_md5_correct(self, tmp_path: Path) -> None:
@@ -331,9 +331,9 @@ class TestPackCatalogAppend:
 
         # both entries exist in .cat but build_vfs takes the last one
         vfs = build_vfs(tmp_path)
-        from x4_catalog._core import _read_payload
+        from x4_catalog._core import read_payload
 
-        data = _read_payload(vfs["file.txt"])
+        data = read_payload(vfs["file.txt"])
         assert data == b"appended"
 
 
@@ -731,7 +731,7 @@ class TestSymlinkSafety:
 
 class TestMd5Verification:
     def test_corrupted_dat_detected(self, tmp_path: Path) -> None:
-        from x4_catalog._core import _read_payload
+        from x4_catalog._core import read_payload
 
         # write valid cat but corrupt the dat
         (tmp_path / "01.cat").write_text(
@@ -742,4 +742,4 @@ class TestMd5Verification:
 
         vfs = build_vfs(tmp_path)
         with pytest.raises(OSError, match="MD5 mismatch"):
-            _read_payload(vfs["file.txt"])
+            read_payload(vfs["file.txt"])

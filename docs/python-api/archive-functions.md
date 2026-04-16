@@ -164,6 +164,26 @@ def parse_cat_line(line: str) -> CatEntry: ...
 
 Raises `ValueError` on blank lines, malformed fields, negative sizes, or invalid MD5 hashes.
 
+## read_payload
+
+Read the raw bytes for a single `CatEntry` from its `.dat` file, with MD5 integrity verification.
+
+```python
+from x4_catalog import read_payload, build_vfs
+from pathlib import Path
+
+vfs = build_vfs(Path("/path/to/X4 Foundations"))
+data = read_payload(vfs["libraries/wares.xml"])
+```
+
+```python
+def read_payload(entry: CatEntry) -> bytes: ...
+```
+
+Raises `OSError` on short reads or MD5 mismatches.
+
+---
+
 ## diff_and_pack
 
 Compare two directories and pack changed files into a catalog.

@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import sqlite3
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
-def inspect_asset(asset_id: str, db_path: Any) -> dict[str, Any] | None:
+def inspect_asset(asset_id: str, db_path: Path | str) -> dict[str, Any] | None:
     """Look up an asset by ware ID, macro name, or component name.
 
     Returns a dict with all known information, or None if not found.

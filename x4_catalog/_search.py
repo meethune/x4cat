@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import sqlite3
-from typing import Any
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 def search_assets(
     term: str,
-    db_path: Any,
+    db_path: Path | str,
     *,
     type_filter: str | None = None,
 ) -> list[dict[str, str]]:

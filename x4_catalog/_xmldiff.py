@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import xml.etree.ElementTree as ET
 
+from x4_catalog._xml_utils import indent_xml as _indent
+
 _IDENTITY_ATTRS = ("id", "name")
 
 
@@ -36,20 +38,6 @@ def _build_index(parent: ET.Element) -> dict[str, ET.Element]:
 def _xpath_for(path_parts: list[str]) -> str:
     """Build an XPath selector from accumulated path parts."""
     return "/" + "/".join(path_parts)
-
-
-def _indent(elem: ET.Element, level: int = 0) -> None:
-    """Indent an element tree for pretty printing (in-place)."""
-    indent = "\n" + "  " * (level + 1)
-    if len(elem):
-        if not elem.text or not elem.text.strip():
-            elem.text = indent
-        for i, child in enumerate(elem):
-            _indent(child, level + 1)
-            if not child.tail or not child.tail.strip():
-                child.tail = indent if i < len(elem) - 1 else "\n" + "  " * level
-    if not elem.tail or not elem.tail.strip():
-        elem.tail = "\n" + "  " * level
 
 
 def _elements_equal(a: ET.Element, b: ET.Element) -> bool:

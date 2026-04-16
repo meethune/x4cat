@@ -4,15 +4,16 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import os
 import sqlite3
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
-from x4_catalog._core import CatEntry, _read_payload, build_vfs, iter_cat_files
+from x4_catalog._core import CatEntry, build_vfs, iter_cat_files, read_payload
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_CACHE_DIR = Path.home() / ".cache" / "x4cat"
+DEFAULT_CACHE_DIR = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "x4cat"
 
 
 def _safe_int(val: str, default: int = 0) -> int:
@@ -106,7 +107,7 @@ def _index_macros(conn: sqlite3.Connection, vfs: dict[str, CatEntry]) -> int:
     entry = vfs.get("index/macros.xml")
     if entry is None:
         return 0
-    data = _read_payload(entry)
+    data = read_payload(entry)
     root = ET.fromstring(data)
     count = 0
     for e in root.findall("entry"):
@@ -126,7 +127,7 @@ def _index_components(conn: sqlite3.Connection, vfs: dict[str, CatEntry]) -> int
     entry = vfs.get("index/components.xml")
     if entry is None:
         return 0
-    data = _read_payload(entry)
+    data = read_payload(entry)
     root = ET.fromstring(data)
     count = 0
     for e in root.findall("entry"):
@@ -146,7 +147,7 @@ def _index_wares(conn: sqlite3.Connection, vfs: dict[str, CatEntry]) -> int:
     entry = vfs.get("libraries/wares.xml")
     if entry is None:
         return 0
-    data = _read_payload(entry)
+    data = read_payload(entry)
     root = ET.fromstring(data)
     count = 0
     for ware in root.findall("ware"):
@@ -191,7 +192,7 @@ def _build_lower_vfs(vfs: dict[str, CatEntry]) -> dict[str, CatEntry]:
     return {k.lower(): v for k, v in vfs.items()}
 
 
-def _vfs_get_ci(vfs: dict[str, CatEntry], path: str) -> CatEntry | None:
+def vfs_get_ci(vfs: dict[str, CatEntry], path: str) -> CatEntry | None:
     """Case-insensitive VFS lookup (index paths may differ in casing from VFS)."""
     entry = vfs.get(path)
     if entry is not None:
@@ -214,7 +215,7 @@ def _index_macro_properties(conn: sqlite3.Connection, vfs: dict[str, CatEntry]) 
         if entry is None:
             continue
         try:
-            data = _read_payload(entry)
+            data = read_payload(entry)
             root = ET.fromstring(data)
         except (OSError, ET.ParseError):
             continue
@@ -262,7 +263,7 @@ def _index_translation_pages(conn: sqlite3.Connection, vfs: dict[str, CatEntry])
     page_ids: set[int] = set()
     for vpath in t_files:
         try:
-            data = _read_payload(vfs[vpath])
+            data = read_payload(vfs[vpath])
             root = ET.fromstring(data)
         except (OSError, ET.ParseError):
             continue
@@ -327,14 +328,14 @@ def _index_schemas(
                 entry = vfs[vpath]
                 dest = tmp / vpath
                 dest.parent.mkdir(parents=True, exist_ok=True)
-                dest.write_bytes(_read_payload(entry))
+                dest.write_bytes(read_payload(entry))
             schema_counts = extract_schema_to_db(tmp, conn)
             counts.update(schema_counts)
 
     # Index scriptproperties.xml
     sp_entry = vfs.get("libraries/scriptproperties.xml")
     if sp_entry is not None:
-        sp_data = _read_payload(sp_entry)
+        sp_data = read_payload(sp_entry)
         sp_counts = extract_scriptproperties_to_db(sp_data, conn)
         counts.update(sp_counts)
 

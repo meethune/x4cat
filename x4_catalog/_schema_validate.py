@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 
 def validate_schema(
     mod_dir: Path,
-    db_path: Any,
+    db_path: Path | str,
 ) -> dict[str, Any]:
     """Validate mod XML files against schema rules in the SQLite index.
 

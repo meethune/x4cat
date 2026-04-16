@@ -6,8 +6,9 @@ import sqlite3
 import xml.etree.ElementTree as ET
 from typing import TYPE_CHECKING, Any
 
-from x4_catalog._core import _read_payload, build_vfs
-from x4_catalog._index import _vfs_get_ci
+from x4_catalog._core import build_vfs, read_payload
+from x4_catalog._index import vfs_get_ci
+from x4_catalog._xml_utils import write_xml as _write_xml
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -15,38 +16,19 @@ if TYPE_CHECKING:
 _DEFAULT_PAGE_ID = 90001
 
 
+def _derive_prices(price_min: int, price_avg: int, price_max: int) -> tuple[int, int, int]:
+    """Auto-derive min/max from avg if not provided."""
+    if price_avg and not price_min:
+        price_min = int(price_avg * 0.85)
+    if price_avg and not price_max:
+        price_max = int(price_avg * 1.15)
+    return price_min, price_avg, price_max
+
+
 def _validate_id(value: str, label: str) -> None:
     """Reject IDs containing path separators or traversal sequences."""
     if ".." in value or "/" in value or "\\" in value:
         raise ValueError(f"Invalid {label}: {value!r} (must not contain path separators or '..')")
-
-
-def _indent_xml(elem: ET.Element, level: int = 0) -> None:
-    """Indent an element tree for pretty printing."""
-    indent = "\n" + "  " * (level + 1)
-    if len(elem):
-        if not elem.text or not elem.text.strip():
-            elem.text = indent
-        for i, child in enumerate(elem):
-            _indent_xml(child, level + 1)
-            if not child.tail or not child.tail.strip():
-                child.tail = indent if i < len(elem) - 1 else "\n" + "  " * level
-    if not elem.tail or not elem.tail.strip():
-        elem.tail = "\n" + "  " * level
-
-
-def _write_xml(path: Any, root: ET.Element) -> None:
-    """Write an XML element to a file with declaration and indentation."""
-    import pathlib
-
-    p = pathlib.Path(path)
-    p.parent.mkdir(parents=True, exist_ok=True)
-    _indent_xml(root)
-    data = (
-        b'<?xml version="1.0" encoding="utf-8"?>\n'
-        + ET.tostring(root, encoding="unicode").encode()
-    )
-    p.write_bytes(data)
 
 
 def _make_translation(
@@ -135,10 +117,7 @@ def scaffold_ware(
         description = f"A custom {name}"
 
     # Auto-derive price range if only avg provided
-    if price_avg and not price_min:
-        price_min = int(price_avg * 0.85)
-    if price_avg and not price_max:
-        price_max = int(price_avg * 1.15)
+    price_min, price_avg, price_max = _derive_prices(price_min, price_avg, price_max)
 
     name_ref = f"{{{page_id},1}}"
     desc_ref = f"{{{page_id},2}}"
@@ -180,7 +159,7 @@ def scaffold_equipment(
     output_dir: Path,
     *,
     clone_from: str = "",
-    db_path: Any = None,
+    db_path: Path | str | None = None,
     description: str = "",
     price_min: int = 0,
     price_avg: int = 0,
@@ -225,11 +204,11 @@ def scaffold_equipment(
     # Read the source macro from the VFS
     vfs = build_vfs(game_dir)
     vpath = source_path + ".xml"
-    entry = _vfs_get_ci(vfs, vpath)
+    entry = vfs_get_ci(vfs, vpath)
     if entry is None:
         raise ValueError(f"Macro file not found in VFS: {vpath}")
 
-    source_data = _read_payload(entry)
+    source_data = read_payload(entry)
     source_root = ET.fromstring(source_data)
     source_macro = source_root.find("macro")
     if source_macro is None:
@@ -298,10 +277,7 @@ def scaffold_equipment(
         if ware_row:
             price_min, price_avg, price_max = ware_row
 
-    if price_avg and not price_min:
-        price_min = int(price_avg * 0.85)
-    if price_avg and not price_max:
-        price_max = int(price_avg * 1.15)
+    price_min, price_avg, price_max = _derive_prices(price_min, price_avg, price_max)
 
     # Determine tags from source macro class
     tag_map: dict[str, str] = {
@@ -371,7 +347,7 @@ def scaffold_ship(
     output_dir: Path,
     *,
     clone_from: str = "",
-    db_path: Any = None,
+    db_path: Path | str | None = None,
     size: str = "s",
     description: str = "",
     price_min: int = 0,
@@ -417,11 +393,11 @@ def scaffold_ship(
     # Read the source macro from VFS
     vfs = build_vfs(game_dir)
     vpath = source_path + ".xml"
-    entry = _vfs_get_ci(vfs, vpath)
+    entry = vfs_get_ci(vfs, vpath)
     if entry is None:
         raise ValueError(f"Macro file not found in VFS: {vpath}")
 
-    source_data = _read_payload(entry)
+    source_data = read_payload(entry)
     source_root = ET.fromstring(source_data)
     source_macro = source_root.find("macro")
     if source_macro is None:
@@ -501,10 +477,7 @@ def scaffold_ship(
         if ware_row:
             price_min, price_avg, price_max = ware_row
 
-    if price_avg and not price_min:
-        price_min = int(price_avg * 0.85)
-    if price_avg and not price_max:
-        price_max = int(price_avg * 1.15)
+    price_min, price_avg, price_max = _derive_prices(price_min, price_avg, price_max)
 
     if not description:
         description = f"A custom {name}"

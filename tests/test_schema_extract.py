@@ -228,10 +228,10 @@ class TestScriptPropertiesExtraction:
     @pytest.mark.skipif(not _HAS_GAME, reason="Game files not available")
     def test_real_scriptproperties(self, tmp_path: Path) -> None:
         from x4_catalog import build_vfs
-        from x4_catalog._core import _read_payload
+        from x4_catalog._core import read_payload
 
         vfs = build_vfs(_GAME_DIR)
-        data = _read_payload(vfs["libraries/scriptproperties.xml"])
+        data = read_payload(vfs["libraries/scriptproperties.xml"])
         db = tmp_path / "test.db"
         conn = sqlite3.connect(db)
         counts = extract_scriptproperties_to_db(data, conn)
