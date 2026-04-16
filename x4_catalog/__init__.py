@@ -1,5 +1,6 @@
 """X4 catalog reader — XRCatTool equivalent for Linux."""
 
+from x4_catalog._cli import main
 from x4_catalog._conflicts import check_conflicts
 from x4_catalog._core import (
     CatEntry,
@@ -10,7 +11,6 @@ from x4_catalog._core import (
     extract_to_disk,
     iter_cat_files,
     list_entries,
-    main,
     pack_catalog,
     parse_cat_line,
     read_payload,
