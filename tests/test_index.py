@@ -136,6 +136,29 @@ class TestBuildIndex:
         assert len(rows) >= 1
 
 
+class TestPerformanceIndexes:
+    """Verify that performance indexes are created during build_index."""
+
+    EXPECTED_INDEXES = [
+        "idx_macro_properties_key",
+        "idx_wares_group",
+        "idx_wares_transport",
+        "idx_script_properties_owner",
+        "idx_game_files_prefix",
+    ]
+
+    def test_indexes_exist(self, tmp_path: Path) -> None:
+        game, _ = make_indexed_game_dir(tmp_path)
+        db = tmp_path / "test.db"
+        build_index(game, db)
+        conn = sqlite3.connect(db)
+        rows = conn.execute("SELECT name FROM sqlite_master WHERE type = 'index'").fetchall()
+        conn.close()
+        index_names = {r[0] for r in rows}
+        for expected in self.EXPECTED_INDEXES:
+            assert expected in index_names, f"Missing index: {expected}"
+
+
 class TestStalenessDetection:
     def test_fresh_index_not_stale(self, tmp_path: Path) -> None:
         game, _ = make_indexed_game_dir(tmp_path)

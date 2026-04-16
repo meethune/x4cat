@@ -84,6 +84,71 @@ CREATE TABLE IF NOT EXISTS game_files (
     mtime        INTEGER NOT NULL,
     md5          TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS schema_elements (
+    element_name  TEXT NOT NULL,
+    parent_context TEXT NOT NULL,
+    type_ref      TEXT NOT NULL DEFAULT '',
+    min_occurs    INTEGER NOT NULL DEFAULT 1,
+    max_occurs    INTEGER,
+    PRIMARY KEY (element_name, parent_context)
+);
+
+CREATE TABLE IF NOT EXISTS schema_attributes (
+    element_name  TEXT NOT NULL,
+    attr_name     TEXT NOT NULL,
+    attr_type     TEXT NOT NULL DEFAULT 'xs:string',
+    use           TEXT NOT NULL DEFAULT 'optional',
+    default_val   TEXT,
+    PRIMARY KEY (element_name, attr_name)
+);
+
+CREATE TABLE IF NOT EXISTS schema_enumerations (
+    type_name TEXT NOT NULL,
+    value     TEXT NOT NULL,
+    PRIMARY KEY (type_name, value)
+);
+
+CREATE TABLE IF NOT EXISTS schema_groups (
+    group_name TEXT NOT NULL,
+    element_name TEXT NOT NULL,
+    PRIMARY KEY (group_name, element_name)
+);
+
+CREATE TABLE IF NOT EXISTS script_datatypes (
+    name       TEXT PRIMARY KEY,
+    base_type  TEXT,
+    suffix     TEXT,
+    is_pseudo  INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS script_keywords (
+    name        TEXT PRIMARY KEY,
+    description TEXT NOT NULL DEFAULT '',
+    type        TEXT,
+    script      TEXT NOT NULL DEFAULT 'any'
+);
+
+CREATE TABLE IF NOT EXISTS script_properties (
+    owner_name  TEXT NOT NULL,
+    owner_kind  TEXT NOT NULL,
+    prop_name   TEXT NOT NULL,
+    result_desc TEXT NOT NULL DEFAULT '',
+    result_type TEXT,
+    PRIMARY KEY (owner_name, owner_kind, prop_name)
+);
+
+-- Performance indexes for x4explorer filtered queries
+CREATE INDEX IF NOT EXISTS idx_macro_properties_key
+    ON macro_properties (property_key);
+CREATE INDEX IF NOT EXISTS idx_wares_group
+    ON wares (ware_group);
+CREATE INDEX IF NOT EXISTS idx_wares_transport
+    ON wares (transport);
+CREATE INDEX IF NOT EXISTS idx_script_properties_owner
+    ON script_properties (owner_name, owner_kind);
+CREATE INDEX IF NOT EXISTS idx_game_files_prefix
+    ON game_files (virtual_path COLLATE NOCASE);
 """
 
 
