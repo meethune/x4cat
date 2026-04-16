@@ -128,7 +128,7 @@ class TestValidateTranslations:
         )
         result = validate_translations(mod)
         warnings = result["warnings"]
-        assert any("1001" in w and "collision" in w.lower() for w in warnings)
+        assert any("1001" in w and "collide" in w.lower() for w in warnings)
 
     def test_page_id_collision_from_index(self, tmp_path: Path) -> None:
         """Collision detection using actual base game page IDs from the index."""
@@ -187,7 +187,7 @@ class TestValidateTranslations:
         )
         result = validate_translations(mod, db_path=db)
         warnings = result["warnings"]
-        assert any("5001" in w and "collision" in w.lower() for w in warnings)
+        assert any("5001" in w and "collide" in w.lower() for w in warnings)
 
     def test_no_translation_files_with_refs(self, tmp_path: Path) -> None:
         mod = tmp_path / "mod"

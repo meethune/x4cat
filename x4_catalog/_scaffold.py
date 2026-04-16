@@ -15,6 +15,12 @@ if TYPE_CHECKING:
 _DEFAULT_PAGE_ID = 90001
 
 
+def _validate_id(value: str, label: str) -> None:
+    """Reject IDs containing path separators or traversal sequences."""
+    if ".." in value or "/" in value or "\\" in value:
+        raise ValueError(f"Invalid {label}: {value!r} (must not contain path separators or '..')")
+
+
 def _indent_xml(elem: ET.Element, level: int = 0) -> None:
     """Indent an element tree for pretty printing."""
     indent = "\n" + "  " * (level + 1)
@@ -123,6 +129,8 @@ def scaffold_ware(
 
     Returns a list of generated file paths (relative to output_dir).
     """
+    _validate_id(ware_id, "ware_id")
+
     if not description:
         description = f"A custom {name}"
 
@@ -184,6 +192,8 @@ def scaffold_equipment(
     Requires ``clone_from`` to specify an existing macro to clone.
     Returns a list of generated file paths (relative to output_dir).
     """
+    _validate_id(macro_id, "macro_id")
+
     if not clone_from:
         raise ValueError("--clone-from is required for equipment scaffolding")
 
@@ -375,6 +385,8 @@ def scaffold_ship(
     The user must supply the component XML and 3D model separately.
     Returns a list of generated file paths (relative to output_dir).
     """
+    _validate_id(macro_id, "macro_id")
+
     if not clone_from:
         raise ValueError("--clone-from is required for ship scaffolding")
 
@@ -478,12 +490,14 @@ def scaffold_ship(
     # Derive prices
     if not price_avg:
         conn2 = sqlite3.connect(db_path)
-        source_ware_id = clone_from.removesuffix("_macro")
-        ware_row = conn2.execute(
-            "SELECT price_min, price_avg, price_max FROM wares WHERE ware_id = ?",
-            (source_ware_id,),
-        ).fetchone()
-        conn2.close()
+        try:
+            source_ware_id = clone_from.removesuffix("_macro")
+            ware_row = conn2.execute(
+                "SELECT price_min, price_avg, price_max FROM wares WHERE ware_id = ?",
+                (source_ware_id,),
+            ).fetchone()
+        finally:
+            conn2.close()
         if ware_row:
             price_min, price_avg, price_max = ware_row
 

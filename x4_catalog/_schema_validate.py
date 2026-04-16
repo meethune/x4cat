@@ -147,6 +147,11 @@ def _validate_element_tree(
         "do_while",
     }
 
+    # Build parent map once (O(n)) instead of per-element lookup (O(n²))
+    parent_map: dict[int, ET.Element] = {
+        id(child): parent for parent in root.iter() for child in parent
+    }
+
     for elem in root.iter():
         tag = elem.tag
 
@@ -155,7 +160,7 @@ def _validate_element_tree(
             continue
 
         # Determine context from parent
-        parent = _find_parent(root, elem)
+        parent = parent_map.get(id(elem))
         if parent is None:
             continue
         parent_tag = parent.tag
@@ -187,12 +192,3 @@ def _validate_element_tree(
             for attr in required_attrs[tag]:
                 if attr not in elem.attrib:
                     warnings.append(f"{file_path}: <{tag}> missing attribute '{attr}'")
-
-
-def _find_parent(root: ET.Element, target: ET.Element) -> ET.Element | None:
-    """Find the parent of *target* in the element tree."""
-    for parent in root.iter():
-        for child in parent:
-            if child is target:
-                return parent
-    return None
