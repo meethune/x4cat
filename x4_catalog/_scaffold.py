@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any
 
 from x4_catalog._core import build_vfs, read_payload
 from x4_catalog._index import vfs_get_ci
+from x4_catalog._xml_utils import safe_fromstring
 from x4_catalog._xml_utils import write_xml as _write_xml
 
 if TYPE_CHECKING:
@@ -209,7 +210,7 @@ def scaffold_equipment(
         raise ValueError(f"Macro file not found in VFS: {vpath}")
 
     source_data = read_payload(entry)
-    source_root = ET.fromstring(source_data)
+    source_root = safe_fromstring(source_data)
     source_macro = source_root.find("macro")
     if source_macro is None:
         raise ValueError(f"No <macro> element in {vpath}")
@@ -398,7 +399,7 @@ def scaffold_ship(
         raise ValueError(f"Macro file not found in VFS: {vpath}")
 
     source_data = read_payload(entry)
-    source_root = ET.fromstring(source_data)
+    source_root = safe_fromstring(source_data)
     source_macro = source_root.find("macro")
     if source_macro is None:
         raise ValueError(f"No <macro> element in {vpath}")

@@ -743,3 +743,34 @@ class TestMd5Verification:
         vfs = build_vfs(tmp_path)
         with pytest.raises(OSError, match="MD5 mismatch"):
             read_payload(vfs["file.txt"])
+
+
+# --- Security: XML entity rejection ---
+
+
+class TestXmlEntityRejection:
+    def test_safe_fromstring_rejects_entities(self) -> None:
+        from x4_catalog._xml_utils import safe_fromstring
+
+        malicious = (
+            b'<?xml version="1.0"?><!DOCTYPE foo [<!ENTITY xxe "pwned">]><root>&xxe;</root>'
+        )
+        with pytest.raises(ValueError, match="[Ee]ntity"):
+            safe_fromstring(malicious)
+
+    def test_safe_fromstring_allows_normal_xml(self) -> None:
+        from x4_catalog._xml_utils import safe_fromstring
+
+        normal = b'<?xml version="1.0"?><root><child attr="val"/></root>'
+        root = safe_fromstring(normal)
+        assert root.tag == "root"
+
+    def test_safe_parse_rejects_entities(self, tmp_path: Path) -> None:
+        from x4_catalog._xml_utils import safe_parse
+
+        malicious_file = tmp_path / "evil.xml"
+        malicious_file.write_bytes(
+            b'<?xml version="1.0"?><!DOCTYPE foo [<!ENTITY xxe "pwned">]><root>&xxe;</root>'
+        )
+        with pytest.raises(ValueError, match="[Ee]ntity"):
+            safe_parse(malicious_file)

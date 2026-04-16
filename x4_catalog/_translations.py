@@ -6,6 +6,8 @@ import re
 import xml.etree.ElementTree as ET
 from typing import TYPE_CHECKING
 
+from x4_catalog._xml_utils import safe_parse
+
 if TYPE_CHECKING:
     from pathlib import Path
 
@@ -74,7 +76,7 @@ def _parse_translations(
         if not t_file.is_file():
             continue
         try:
-            root = ET.parse(t_file).getroot()
+            root = safe_parse(t_file)
         except ET.ParseError:
             continue
         if root.tag != "language":
@@ -222,7 +224,7 @@ def scaffold_translation(
     """
     import pathlib
 
-    source = ET.parse(source_path).getroot()
+    source = safe_parse(source_path)
     new_root = ET.Element("language", id=str(lang_code))
 
     for page in source.findall("page"):

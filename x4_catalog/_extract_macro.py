@@ -40,7 +40,10 @@ def extract_macro(
         return None
 
     data = read_payload(entry)
-    dest = pathlib.Path(output_dir) / vpath
+    resolved_output = pathlib.Path(output_dir).resolve()
+    dest = (resolved_output / vpath).resolve()
+    if not dest.is_relative_to(resolved_output):
+        raise ValueError(f"Path traversal detected: {vpath!r} escapes output directory")
     dest.parent.mkdir(parents=True, exist_ok=True)
     dest.write_bytes(data)
     return dest

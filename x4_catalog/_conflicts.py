@@ -5,6 +5,8 @@ from __future__ import annotations
 import xml.etree.ElementTree as ET
 from typing import TYPE_CHECKING
 
+from x4_catalog._xml_utils import safe_parse
+
 if TYPE_CHECKING:
     from pathlib import Path
 
@@ -27,7 +29,7 @@ def _scan_diff_ops(
         if not xml_path.is_file() or xml_path.is_symlink():
             continue
         try:
-            root = ET.parse(xml_path).getroot()
+            root = safe_parse(xml_path)
         except ET.ParseError:
             continue
         if root.tag != "diff":
