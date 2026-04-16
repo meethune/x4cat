@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import re
 import xml.etree.ElementTree as ET
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+    from x4_catalog._types import ValidationReport
 
 _REF_PATTERN = re.compile(r"\{(\d+),(\d+)\}")
 
@@ -136,7 +138,7 @@ def _check_page_collisions(
 def validate_translations(
     mod_dir: Path,
     db_path: Path | str | None = None,
-) -> dict[str, Any]:
+) -> ValidationReport:
     """Validate translation files against text references in mod XML.
 
     If *db_path* is provided, uses the SQLite index for accurate base game

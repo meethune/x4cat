@@ -7,125 +7,11 @@ import sys
 import xml.etree.ElementTree as ET
 from typing import TYPE_CHECKING
 
-from x4_catalog._index import build_index
+from tests.conftest import make_indexed_game_dir
 from x4_catalog._scaffold import scaffold_equipment, scaffold_ship, scaffold_ware
 
 if TYPE_CHECKING:
     from pathlib import Path
-
-
-def _make_game_dir(tmp_path: Path) -> tuple[Path, Path]:
-    """Create a fake game dir with index, build index, return (game, db)."""
-    from tests.conftest import _write_cat_dat
-
-    game = tmp_path / "game"
-    game.mkdir()
-
-    idx_macros = ET.Element("index")
-    ET.SubElement(
-        idx_macros,
-        "entry",
-        name="engine_test_mk1_macro",
-        value=r"assets\props\engines\macros\engine_test_mk1_macro",
-    )
-    ET.SubElement(
-        idx_macros,
-        "entry",
-        name="ship_test_s_fighter_01_a_macro",
-        value=r"assets\units\size_s\macros\ship_test_s_fighter_01_a_macro",
-    )
-    macros_xml = ET.tostring(idx_macros, encoding="unicode").encode()
-
-    idx_comps = ET.Element("index")
-    ET.SubElement(
-        idx_comps,
-        "entry",
-        name="engine_test_mk1",
-        value=r"assets\props\engines\engine_test_mk1",
-    )
-    ET.SubElement(
-        idx_comps,
-        "entry",
-        name="ship_test_s_fighter_01",
-        value=r"assets\units\size_s\ship_test_s_fighter_01",
-    )
-    comps_xml = ET.tostring(idx_comps, encoding="unicode").encode()
-
-    wares_xml = (
-        b'<?xml version="1.0" encoding="utf-8"?>\n'
-        b"<wares>\n"
-        b'  <ware id="engine_test_mk1" name="{20107,100}"'
-        b' group="engines" transport="equipment"'
-        b' volume="1" tags="engine equipment">\n'
-        b'    <price min="1000" average="1500" max="2000"/>\n'
-        b'    <component ref="engine_test_mk1_macro"/>\n'
-        b'    <owner faction="argon"/>\n'
-        b"  </ware>\n"
-        b'  <ware id="ship_test_s_fighter_01_a" name="{20101,100}"'
-        b' transport="ship" volume="1" tags="ship">\n'
-        b'    <price min="100000" average="130000" max="160000"/>\n'
-        b'    <component ref="ship_test_s_fighter_01_a_macro"/>\n'
-        b'    <owner faction="argon"/>\n'
-        b"  </ware>\n"
-        b"</wares>"
-    )
-
-    ship_macro = (
-        b'<?xml version="1.0" encoding="utf-8"?>\n'
-        b"<macros>\n"
-        b'  <macro name="ship_test_s_fighter_01_a_macro" class="ship_s">\n'
-        b'    <component ref="ship_test_s_fighter_01"/>\n'
-        b"    <properties>\n"
-        b'      <identification name="{20101,100}" basename="{20101,99}"'
-        b' makerrace="argon" description="{20101,102}"/>\n'
-        b'      <hull max="3100"/>\n'
-        b'      <purpose primary="fight"/>\n'
-        b'      <ship type="fighter"/>\n'
-        b"    </properties>\n"
-        b"  </macro>\n"
-        b"</macros>"
-    )
-
-    engine_macro = (
-        b'<?xml version="1.0" encoding="utf-8"?>\n'
-        b"<macros>\n"
-        b'  <macro name="engine_test_mk1_macro" class="engine">\n'
-        b'    <component ref="engine_test_mk1"/>\n'
-        b"    <properties>\n"
-        b'      <identification name="{20107,100}" mk="1"/>\n'
-        b'      <boost duration="10" thrust="5.0"/>\n'
-        b'      <travel charge="15" thrust="20.0"/>\n'
-        b'      <hull max="500"/>\n'
-        b"    </properties>\n"
-        b"  </macro>\n"
-        b"</macros>"
-    )
-
-    _write_cat_dat(
-        game,
-        "01.cat",
-        [
-            ("index/macros.xml", macros_xml, 1000000),
-            ("index/components.xml", comps_xml, 1000000),
-            ("libraries/wares.xml", wares_xml, 1000000),
-            (
-                "assets/props/engines/macros/engine_test_mk1_macro.xml",
-                engine_macro,
-                1000000,
-            ),
-            (
-                "assets/units/size_s/macros/ship_test_s_fighter_01_a_macro.xml",
-                ship_macro,
-                1000000,
-            ),
-        ],
-    )
-    db = tmp_path / "test.db"
-    build_index(game, db)
-    return game, db
-
-
-# --- scaffold ware (Tier 1) ---
 
 
 class TestScaffoldWare:
@@ -237,7 +123,7 @@ class TestScaffoldWare:
 
 class TestScaffoldEquipment:
     def test_generates_four_files(self, tmp_path: Path) -> None:
-        _, db = _make_game_dir(tmp_path)
+        _, db = make_indexed_game_dir(tmp_path)
         out = tmp_path / "src"
         scaffold_equipment(
             "my_engine_macro",
@@ -255,7 +141,7 @@ class TestScaffoldEquipment:
         assert len(macro_files) == 1
 
     def test_cloned_macro_has_new_name(self, tmp_path: Path) -> None:
-        _, db = _make_game_dir(tmp_path)
+        _, db = make_indexed_game_dir(tmp_path)
         out = tmp_path / "src"
         scaffold_equipment(
             "my_engine_macro",
@@ -275,7 +161,7 @@ class TestScaffoldEquipment:
         assert macro.get("name") == "my_engine_macro"
 
     def test_cloned_macro_preserves_properties(self, tmp_path: Path) -> None:
-        _, db = _make_game_dir(tmp_path)
+        _, db = make_indexed_game_dir(tmp_path)
         out = tmp_path / "src"
         scaffold_equipment(
             "my_engine_macro",
@@ -297,7 +183,7 @@ class TestScaffoldEquipment:
         assert hull.get("max") == "500"
 
     def test_index_diff_registers_macro(self, tmp_path: Path) -> None:
-        _, db = _make_game_dir(tmp_path)
+        _, db = make_indexed_game_dir(tmp_path)
         out = tmp_path / "src"
         scaffold_equipment(
             "my_engine_macro",
@@ -315,7 +201,7 @@ class TestScaffoldEquipment:
         assert entry.get("name") == "my_engine_macro"
 
     def test_wares_diff_refs_macro(self, tmp_path: Path) -> None:
-        _, db = _make_game_dir(tmp_path)
+        _, db = make_indexed_game_dir(tmp_path)
         out = tmp_path / "src"
         scaffold_equipment(
             "my_engine_macro",
@@ -332,7 +218,7 @@ class TestScaffoldEquipment:
         assert comp.get("ref") == "my_engine_macro"
 
     def test_ids_consistent(self, tmp_path: Path) -> None:
-        _, db = _make_game_dir(tmp_path)
+        _, db = make_indexed_game_dir(tmp_path)
         out = tmp_path / "src"
         scaffold_equipment(
             "my_engine_macro",
@@ -348,7 +234,7 @@ class TestScaffoldEquipment:
         assert ware.get("id") == "my_engine"
 
     def test_clone_from_not_found_raises(self, tmp_path: Path) -> None:
-        _, db = _make_game_dir(tmp_path)
+        _, db = make_indexed_game_dir(tmp_path)
         out = tmp_path / "src"
         import pytest
 
@@ -392,7 +278,7 @@ class TestScaffoldCli:
         assert (out / "t" / "0001-l044.xml").exists()
 
     def test_scaffold_equipment_cli(self, tmp_path: Path) -> None:
-        game, db = _make_game_dir(tmp_path)
+        game, db = make_indexed_game_dir(tmp_path)
         out = tmp_path / "src"
         result = subprocess.run(
             [
@@ -420,7 +306,7 @@ class TestScaffoldCli:
         assert (out / "index" / "macros.xml").exists()
 
     def test_scaffold_equipment_no_clone_errors(self, tmp_path: Path) -> None:
-        game, db = _make_game_dir(tmp_path)
+        game, db = make_indexed_game_dir(tmp_path)
         out = tmp_path / "src"
         result = subprocess.run(
             [
@@ -450,7 +336,7 @@ class TestScaffoldCli:
 
 class TestScaffoldShip:
     def test_generates_all_files(self, tmp_path: Path) -> None:
-        _, db = _make_game_dir(tmp_path)
+        _, db = make_indexed_game_dir(tmp_path)
         out = tmp_path / "src"
         files = scaffold_ship(
             "mymod_fighter_01_a_macro",
@@ -468,7 +354,7 @@ class TestScaffoldShip:
         assert len(files) == 6
 
     def test_ship_macro_has_correct_class(self, tmp_path: Path) -> None:
-        _, db = _make_game_dir(tmp_path)
+        _, db = make_indexed_game_dir(tmp_path)
         out = tmp_path / "src"
         scaffold_ship(
             "mymod_fighter_01_a_macro",
@@ -488,7 +374,7 @@ class TestScaffoldShip:
         assert macro.get("name") == "mymod_fighter_01_a_macro"
 
     def test_ship_macro_preserves_properties(self, tmp_path: Path) -> None:
-        _, db = _make_game_dir(tmp_path)
+        _, db = make_indexed_game_dir(tmp_path)
         out = tmp_path / "src"
         scaffold_ship(
             "mymod_fighter_01_a_macro",
@@ -506,7 +392,7 @@ class TestScaffoldShip:
         assert hull.get("max") == "3100"
 
     def test_component_index_diff(self, tmp_path: Path) -> None:
-        _, db = _make_game_dir(tmp_path)
+        _, db = make_indexed_game_dir(tmp_path)
         out = tmp_path / "src"
         scaffold_ship(
             "mymod_fighter_01_a_macro",
@@ -522,7 +408,7 @@ class TestScaffoldShip:
         assert entry.get("name") == "mymod_fighter_01"
 
     def test_ware_is_ship_transport(self, tmp_path: Path) -> None:
-        _, db = _make_game_dir(tmp_path)
+        _, db = make_indexed_game_dir(tmp_path)
         out = tmp_path / "src"
         scaffold_ship(
             "mymod_fighter_01_a_macro",
@@ -538,7 +424,7 @@ class TestScaffoldShip:
         assert ware.get("tags") == "ship"
 
     def test_readme_mentions_component(self, tmp_path: Path) -> None:
-        _, db = _make_game_dir(tmp_path)
+        _, db = make_indexed_game_dir(tmp_path)
         out = tmp_path / "src"
         scaffold_ship(
             "mymod_fighter_01_a_macro",
@@ -552,7 +438,7 @@ class TestScaffoldShip:
         assert "3D model" in readme or "3d model" in readme.lower()
 
     def test_readme_documents_stat_mod_workflow(self, tmp_path: Path) -> None:
-        _, db = _make_game_dir(tmp_path)
+        _, db = make_indexed_game_dir(tmp_path)
         out = tmp_path / "src"
         scaffold_ship(
             "mymod_fighter_01_a_macro",
@@ -569,7 +455,7 @@ class TestScaffoldShip:
 
 class TestScaffoldShipCli:
     def test_scaffold_ship_cli(self, tmp_path: Path) -> None:
-        _, db = _make_game_dir(tmp_path)
+        _, db = make_indexed_game_dir(tmp_path)
         out = tmp_path / "src"
         result = subprocess.run(
             [

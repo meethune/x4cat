@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+from tests.conftest import make_indexed_game_dir
 from x4_catalog._index import build_index
 from x4_catalog._inspect import inspect_asset
 
@@ -15,92 +16,10 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
-def _make_game_dir(tmp_path: Path) -> Path:
-    """Create a fake game dir with macros, components, wares, and a ship macro file."""
-    from tests.conftest import _write_cat_dat
-
-    game = tmp_path / "game"
-    game.mkdir()
-
-    import xml.etree.ElementTree as ET
-
-    # index/macros.xml
-    macros_root = ET.Element("index")
-    ET.SubElement(
-        macros_root,
-        "entry",
-        name="ship_test_macro",
-        value=r"assets\units\size_s\macros\ship_test_macro",
-    )
-    macros_xml = ET.tostring(macros_root, encoding="unicode").encode()
-
-    # index/components.xml
-    comps_root = ET.Element("index")
-    ET.SubElement(
-        comps_root,
-        "entry",
-        name="ship_test",
-        value=r"assets\units\size_s\ship_test",
-    )
-    comps_xml = ET.tostring(comps_root, encoding="unicode").encode()
-
-    # libraries/wares.xml
-    wares_xml = (
-        b'<?xml version="1.0" encoding="utf-8"?>\n'
-        b"<wares>\n"
-        b'  <ware id="energycells" name="{20201,301}" group="energy"'
-        b' transport="container" volume="6" tags="container economy">\n'
-        b'    <price min="10" average="16" max="22"/>\n'
-        b'    <owner faction="argon"/>\n'
-        b'    <owner faction="teladi"/>\n'
-        b"  </ware>\n"
-        b'  <ware id="ship_test" name="{20101,100}" group="ships_argon"'
-        b' transport="ship" volume="1" tags="ship">\n'
-        b'    <price min="50000" average="75000" max="100000"/>\n'
-        b'    <owner faction="argon"/>\n'
-        b"  </ware>\n"
-        b"</wares>"
-    )
-
-    # Ship macro XML
-    ship_macro_xml = (
-        b'<?xml version="1.0" encoding="utf-8"?>\n'
-        b"<macros>\n"
-        b'  <macro name="ship_test_macro" class="ship_s">\n'
-        b'    <component ref="ship_test"/>\n'
-        b"    <properties>\n"
-        b'      <identification name="{20101,100}" basename="{20101,99}"/>\n'
-        b'      <hull max="3100"/>\n'
-        b'      <storage missile="2"/>\n'
-        b'      <purpose primary="fight"/>\n'
-        b'      <ship type="fighter"/>\n'
-        b'      <physics mass="6"/>\n'
-        b"    </properties>\n"
-        b"  </macro>\n"
-        b"</macros>"
-    )
-
-    _write_cat_dat(
-        game,
-        "01.cat",
-        [
-            ("index/macros.xml", macros_xml, 1000000),
-            ("index/components.xml", comps_xml, 1000000),
-            ("libraries/wares.xml", wares_xml, 1000000),
-            (
-                "assets/units/size_s/macros/ship_test_macro.xml",
-                ship_macro_xml,
-                1000000,
-            ),
-        ],
-    )
-    return game
-
-
 @pytest.fixture()
 def indexed_game(tmp_path: Path) -> tuple[Path, Path]:
     """Build a game dir and index it. Returns (game_dir, db_path)."""
-    game = _make_game_dir(tmp_path)
+    game, _ = make_indexed_game_dir(tmp_path)
     db = tmp_path / "test.db"
     build_index(game, db)
     return game, db
@@ -152,7 +71,7 @@ class TestInspectAsset:
 
 class TestInspectCli:
     def test_inspect_subcommand(self, tmp_path: Path) -> None:
-        game = _make_game_dir(tmp_path)
+        game, _ = make_indexed_game_dir(tmp_path)
         db = tmp_path / "test.db"
         build_index(game, db)
         result = subprocess.run(
@@ -173,7 +92,7 @@ class TestInspectCli:
         assert "16" in result.stdout  # price_avg
 
     def test_inspect_macro(self, tmp_path: Path) -> None:
-        game = _make_game_dir(tmp_path)
+        game, _ = make_indexed_game_dir(tmp_path)
         db = tmp_path / "test.db"
         build_index(game, db)
         result = subprocess.run(
@@ -194,7 +113,7 @@ class TestInspectCli:
         assert "3100" in result.stdout  # hull
 
     def test_inspect_not_found(self, tmp_path: Path) -> None:
-        game = _make_game_dir(tmp_path)
+        game, _ = make_indexed_game_dir(tmp_path)
         db = tmp_path / "test.db"
         build_index(game, db)
         result = subprocess.run(

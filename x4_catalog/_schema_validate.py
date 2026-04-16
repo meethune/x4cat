@@ -3,17 +3,19 @@
 from __future__ import annotations
 
 import xml.etree.ElementTree as ET
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     import sqlite3
     from pathlib import Path
 
+    from x4_catalog._types import ValidationReport
+
 
 def validate_schema(
     mod_dir: Path,
     db_path: Path | str,
-) -> dict[str, Any]:
+) -> ValidationReport:
     """Validate mod XML files against schema rules in the SQLite index.
 
     Checks:
