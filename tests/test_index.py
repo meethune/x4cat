@@ -141,6 +141,7 @@ class TestPerformanceIndexes:
 
     EXPECTED_INDEXES = [
         "idx_macro_properties_key",
+        "idx_macro_properties_key_val",
         "idx_wares_group",
         "idx_wares_transport",
         "idx_script_properties_owner",

@@ -141,6 +141,8 @@ CREATE TABLE IF NOT EXISTS script_properties (
 -- Performance indexes for x4explorer filtered queries
 CREATE INDEX IF NOT EXISTS idx_macro_properties_key
     ON macro_properties (property_key);
+CREATE INDEX IF NOT EXISTS idx_macro_properties_key_val
+    ON macro_properties (property_key, property_val);
 CREATE INDEX IF NOT EXISTS idx_wares_group
     ON wares (ware_group);
 CREATE INDEX IF NOT EXISTS idx_wares_transport
@@ -441,6 +443,7 @@ def build_index(game_dir: Path, db_path: Path) -> Path:
         file_count = _index_game_files(conn, vfs)
         _index_schemas(conn, vfs, game_dir)
 
+        conn.execute("PRAGMA journal_mode = WAL")
         conn.commit()
     finally:
         conn.close()
