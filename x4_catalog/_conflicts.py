@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import xml.etree.ElementTree as ET
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+    from x4_catalog._types import ConflictEntry, ConflictReport
 
 
 def _scan_diff_ops(
@@ -74,7 +76,7 @@ def _classify_overlap(
 
 def check_conflicts(
     mod_dirs: list[Path],
-) -> dict[str, Any]:
+) -> ConflictReport:
     """Check for conflicts between multiple mods' diff patches.
 
     Returns a dict with:
@@ -100,9 +102,9 @@ def check_conflicts(
 
     shared_files = {f: mods for f, mods in file_to_mods.items() if len(mods) > 1}
 
-    conflicts: list[dict[str, Any]] = []
-    safe: list[dict[str, Any]] = []
-    info: list[dict[str, Any]] = []
+    conflicts: list[ConflictEntry] = []
+    safe: list[ConflictEntry] = []
+    info: list[ConflictEntry] = []
 
     for vpath, mod_names in sorted(shared_files.items()):
         # Collect all sels for this file across mods
@@ -118,7 +120,7 @@ def check_conflicts(
                 continue
 
             severity = _classify_overlap(ops_by_mod, sel)
-            entry = {
+            entry: ConflictEntry = {
                 "file": vpath,
                 "sel": sel,
                 "mods": sorted(ops_by_mod.keys()),
@@ -150,17 +152,16 @@ def check_conflicts(
                     continue
                 # Check if the remove sel is a prefix of the other sel
                 if other_sel.startswith(rm_sel) and other_sel != rm_sel:
-                    conflicts.append(
-                        {
-                            "file": vpath,
-                            "sel": f"{rm_sel} (removes parent of {other_sel})",
-                            "mods": sorted({rm_mod, other_mod}),
-                            "operations": {
-                                rm_mod: ["remove"],
-                                other_mod: [other_tag],
-                            },
-                        }
-                    )
+                    cross_entry: ConflictEntry = {
+                        "file": vpath,
+                        "sel": f"{rm_sel} (removes parent of {other_sel})",
+                        "mods": sorted({rm_mod, other_mod}),
+                        "operations": {
+                            rm_mod: ["remove"],
+                            other_mod: [other_tag],
+                        },
+                    }
+                    conflicts.append(cross_entry)
 
     return {
         "conflicts": conflicts,

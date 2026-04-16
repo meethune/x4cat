@@ -30,6 +30,7 @@ from x4_catalog._schema_extract import extract_schema_to_db, extract_scriptprope
 from x4_catalog._schema_validate import validate_schema
 from x4_catalog._search import search_assets
 from x4_catalog._translations import scaffold_translation, validate_translations
+from x4_catalog._types import ConflictEntry, ConflictReport, ValidationReport
 from x4_catalog._validate import (
     DiffOp,
     FileValidationReport,
@@ -42,6 +43,8 @@ from x4_catalog._xmldiff import generate_diff
 __all__ = [
     "CatEntry",
     "check_conflicts",
+    "ConflictEntry",
+    "ConflictReport",
     "DiffOp",
     "FileValidationReport",
     "ValidationResult",
@@ -72,6 +75,7 @@ __all__ = [
     "scaffold_translation",
     "scaffold_ware",
     "search_assets",
+    "ValidationReport",
     "validate_diff_directory",
     "validate_schema",
     "validate_diff_file",
