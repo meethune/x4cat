@@ -330,6 +330,8 @@ def extract_scriptproperties_to_db(
             result_type TEXT,
             PRIMARY KEY (owner_name, owner_kind, prop_name)
         );
+        CREATE INDEX IF NOT EXISTS idx_script_properties_owner
+            ON script_properties (owner_name, owner_kind);
     """)
 
     root = safe_fromstring(scriptprops_data)

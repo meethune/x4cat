@@ -84,6 +84,16 @@ CREATE TABLE IF NOT EXISTS game_files (
     mtime        INTEGER NOT NULL,
     md5          TEXT NOT NULL
 );
+
+-- Performance indexes for x4explorer filtered queries
+CREATE INDEX IF NOT EXISTS idx_macro_properties_key
+    ON macro_properties (property_key);
+CREATE INDEX IF NOT EXISTS idx_wares_group
+    ON wares (ware_group);
+CREATE INDEX IF NOT EXISTS idx_wares_transport
+    ON wares (transport);
+CREATE INDEX IF NOT EXISTS idx_game_files_prefix
+    ON game_files (virtual_path COLLATE NOCASE);
 """
 
 
