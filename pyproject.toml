@@ -7,7 +7,7 @@ packages = ["x4_catalog"]
 
 [project]
 name = "x4cat"
-version = "1.2.3"
+version = "1.2.4"
 description = "Linux CLI for X4: Foundations .cat/.dat archives (XRCatTool equivalent)"
 requires-python = ">=3.13"
 license = "MIT"
