@@ -36,8 +36,9 @@ x4cat index "/path/to/X4 Foundations"
 x4cat inspect ship_arg_s_fighter_01_a_macro
 x4cat inspect energycells
 
-# Search across all wares, macros, and components
+# Search across wares, macros, components, datatypes, and keywords
 x4cat search "fighter"
+x4cat search "Energy Cells"          # search by in-game name
 x4cat search "laser" --type macro
 
 # List and extract game files

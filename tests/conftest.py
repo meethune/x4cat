@@ -246,6 +246,24 @@ def make_indexed_game_dir(tmp_path: Path) -> tuple[Path, Path]:
         b"</macros>"
     )
 
+    # English translation file
+    t_xml = (
+        b'<?xml version="1.0" encoding="utf-8"?>\n'
+        b'<language id="44">\n'
+        b'  <page id="20201" title="Wares">\n'
+        b'    <t id="301">Energy Cells</t>\n'
+        b'    <t id="401">Advanced Composites</t>\n'
+        b"  </page>\n"
+        b'  <page id="20101" title="Ships">\n'
+        b'    <t id="100">Test Ship</t>\n'
+        b'    <t id="200">Argon Fighter</t>\n'
+        b"  </page>\n"
+        b'  <page id="20107" title="Engines">\n'
+        b'    <t id="100">Engine Mk1</t>\n'
+        b"  </page>\n"
+        b"</language>"
+    )
+
     _write_cat_dat(
         game,
         "01.cat",
@@ -253,6 +271,7 @@ def make_indexed_game_dir(tmp_path: Path) -> tuple[Path, Path]:
             ("index/macros.xml", macros_xml, 1000000),
             ("index/components.xml", comps_xml, 1000000),
             ("libraries/wares.xml", wares_xml, 1000000),
+            ("t/0001-l044.xml", t_xml, 1000000),
             ("assets/units/size_s/macros/ship_test_macro.xml", ship_macro, 1000000),
             (
                 "assets/units/size_s/macros/ship_test_s_fighter_01_a_macro.xml",
