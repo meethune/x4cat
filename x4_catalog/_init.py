@@ -11,7 +11,7 @@ from xml.sax.saxutils import escape as xml_escape
 
 _TEMPLATE_DIR = Path(__file__).resolve().parent.parent / "templates" / "extension_poc"
 _TEMPLATE_REPO = "https://github.com/meethune/extension_poc.git"
-_TEMPLATE_REF = "1f777d7238a04aa79227279b473d08fb9a8342de"  # pinned to submodule commit
+_TEMPLATE_REF = "f9e195a998347f43cd74de2edf11703735cebb02"  # extension_poc v1.1.0
 
 _MOD_ID_RE = re.compile(r"^[a-zA-Z][a-zA-Z0-9_]{0,63}$")
 
