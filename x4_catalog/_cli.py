@@ -752,7 +752,7 @@ def main(argv: list[str] | None = None) -> int:
     p_search.add_argument(
         "--type",
         default=None,
-        choices=["ware", "macro", "component"],
+        choices=["ware", "macro", "component", "datatype", "keyword"],
         help="Filter results by type",
     )
 

@@ -48,15 +48,16 @@ CREATE TABLE IF NOT EXISTS components (
 );
 
 CREATE TABLE IF NOT EXISTS wares (
-    ware_id    TEXT PRIMARY KEY,
-    name_ref   TEXT NOT NULL DEFAULT '',
-    ware_group TEXT NOT NULL DEFAULT '',
-    transport  TEXT NOT NULL DEFAULT '',
-    volume     INTEGER NOT NULL DEFAULT 0,
-    tags       TEXT NOT NULL DEFAULT '',
-    price_min  INTEGER NOT NULL DEFAULT 0,
-    price_avg  INTEGER NOT NULL DEFAULT 0,
-    price_max  INTEGER NOT NULL DEFAULT 0
+    ware_id       TEXT PRIMARY KEY,
+    name_ref      TEXT NOT NULL DEFAULT '',
+    name_resolved TEXT NOT NULL DEFAULT '',
+    ware_group    TEXT NOT NULL DEFAULT '',
+    transport     TEXT NOT NULL DEFAULT '',
+    volume        INTEGER NOT NULL DEFAULT 0,
+    tags          TEXT NOT NULL DEFAULT '',
+    price_min     INTEGER NOT NULL DEFAULT 0,
+    price_avg     INTEGER NOT NULL DEFAULT 0,
+    price_max     INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS ware_owners (
@@ -76,6 +77,13 @@ CREATE TABLE IF NOT EXISTS macro_properties (
 
 CREATE TABLE IF NOT EXISTS translation_pages (
     page_id INTEGER PRIMARY KEY
+);
+
+CREATE TABLE IF NOT EXISTS translations (
+    page_id  INTEGER NOT NULL,
+    entry_id INTEGER NOT NULL,
+    text     TEXT NOT NULL,
+    PRIMARY KEY (page_id, entry_id)
 );
 
 CREATE TABLE IF NOT EXISTS game_files (
@@ -349,6 +357,61 @@ def _index_translation_pages(conn: sqlite3.Connection, vfs: dict[str, CatEntry])
     return len(page_ids)
 
 
+_TRANSLATION_REF_RE = __import__("re").compile(r"^\{(\d+),(\d+)\}$")
+
+
+def _index_translations(conn: sqlite3.Connection, vfs: dict[str, CatEntry]) -> int:
+    """Index English translation text from t/0001-l044.xml."""
+    entry = vfs.get("t/0001-l044.xml")
+    if entry is None:
+        return 0
+    try:
+        data = read_payload(entry)
+        root = safe_fromstring(data)
+    except (OSError, ET.ParseError):
+        return 0
+    if root.tag != "language":
+        return 0
+    count = 0
+    for page in root.findall("page"):
+        pid_str = page.get("id", "")
+        if not pid_str.isdigit():
+            continue
+        page_id = int(pid_str)
+        for t in page.findall("t"):
+            tid_str = t.get("id", "")
+            if not tid_str.isdigit():
+                continue
+            text = t.text or ""
+            if text:
+                conn.execute(
+                    "INSERT OR REPLACE INTO translations (page_id, entry_id, text) "
+                    "VALUES (?, ?, ?)",
+                    (page_id, int(tid_str), text),
+                )
+                count += 1
+    return count
+
+
+def _resolve_names(conn: sqlite3.Connection) -> None:
+    """Resolve translation refs in wares.name_ref to readable names."""
+    rows = conn.execute("SELECT ware_id, name_ref FROM wares WHERE name_ref != ''").fetchall()
+    for row in rows:
+        m = _TRANSLATION_REF_RE.match(row[1])
+        if not m:
+            continue
+        page_id, entry_id = int(m.group(1)), int(m.group(2))
+        t_row = conn.execute(
+            "SELECT text FROM translations WHERE page_id = ? AND entry_id = ?",
+            (page_id, entry_id),
+        ).fetchone()
+        if t_row:
+            conn.execute(
+                "UPDATE wares SET name_resolved = ? WHERE ware_id = ?",
+                (t_row[0], row[0]),
+            )
+
+
 def find_index_db() -> Path | None:
     """Find an existing index DB in the default cache directory.
 
@@ -440,6 +503,8 @@ def build_index(game_dir: Path, db_path: Path) -> Path:
         ware_count = _index_wares(conn, vfs)
         prop_count = _index_macro_properties(conn, vfs)
         tpage_count = _index_translation_pages(conn, vfs)
+        _index_translations(conn, vfs)
+        _resolve_names(conn)
         file_count = _index_game_files(conn, vfs)
         _index_schemas(conn, vfs, game_dir)
 

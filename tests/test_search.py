@@ -75,6 +75,29 @@ class TestSearchAssets:
         assert macro_results
         assert macro_results[0]["path"]
 
+    def test_search_by_resolved_name(self, tmp_path: Path) -> None:
+        game, _ = make_indexed_game_dir(tmp_path)
+        db = tmp_path / "test.db"
+        build_index(game, db)
+        results = search_assets("Energy Cells", db)
+        ids = {r["id"] for r in results}
+        assert "energycells" in ids
+
+    def test_search_by_name_ref(self, tmp_path: Path) -> None:
+        game, _ = make_indexed_game_dir(tmp_path)
+        db = tmp_path / "test.db"
+        build_index(game, db)
+        results = search_assets("20201", db)
+        ids = {r["id"] for r in results}
+        assert "energycells" in ids
+
+    def test_search_like_escaping(self, tmp_path: Path) -> None:
+        game, _ = make_indexed_game_dir(tmp_path)
+        db = tmp_path / "test.db"
+        build_index(game, db)
+        results = search_assets("%", db)
+        assert results == []
+
     def test_search_type_filter(self, tmp_path: Path) -> None:
         game, _ = make_indexed_game_dir(tmp_path)
         db = tmp_path / "test.db"

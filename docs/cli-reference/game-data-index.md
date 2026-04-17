@@ -99,7 +99,7 @@ ship_arg_s_fighter_01_a_macro (ship_s)
 
 ## search
 
-Search game assets by partial match across IDs, groups, and tags.
+Search game assets by partial match across IDs, names, groups, and tags. Wares are also searchable by their resolved English name (e.g., "Energy Cells").
 
 ```
 x4cat search <term> [options]
@@ -115,7 +115,7 @@ x4cat search <term> [options]
 
 | Option | Description |
 |--------|-------------|
-| `--type TYPE` | Filter results by type: `ware`, `macro`, or `component` |
+| `--type TYPE` | Filter results by type: `ware`, `macro`, `component`, `datatype`, or `keyword` |
 
 The index database is auto-detected from `~/.cache/x4cat/`. Use `x4cat --db <path>` to specify explicitly.
 
@@ -125,11 +125,17 @@ The index database is auto-detected from `~/.cache/x4cat/`. Use `x4cat --db <pat
 # Search for anything containing "fighter"
 x4cat search fighter
 
+# Search by in-game name
+x4cat search "Energy Cells"
+
 # Search only wares
 x4cat search energy --type ware
 
 # Search macros related to Argon ships
 x4cat search ship_arg --type macro
+
+# Search script datatypes
+x4cat search ship --type datatype
 
 # With an explicit index database
 x4cat --db ./game.db search fighter
@@ -138,11 +144,9 @@ x4cat --db ./game.db search fighter
 **Sample output:**
 
 ```
-  macro       ship_arg_s_fighter_01_a_macro  (assets/units/size_s/macros/ship_arg_s_fighter_01_a_macro.xml)  — ship_s
-  macro       ship_arg_s_fighter_01_b_macro  (assets/units/size_s/macros/ship_arg_s_fighter_01_b_macro.xml)  — ship_s
-  ware        ship_arg_s_fighter_01_a  — [ship] avg:79800
+  ware        energycells  — Energy Cells [energy] avg:16
 
-3 result(s)
+1 result(s)
 ```
 
 ---

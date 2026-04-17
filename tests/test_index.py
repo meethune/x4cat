@@ -136,6 +136,44 @@ class TestBuildIndex:
         assert len(rows) >= 1
 
 
+class TestTranslations:
+    def test_translations_indexed(self, tmp_path: Path) -> None:
+        game, _ = make_indexed_game_dir(tmp_path)
+        db = tmp_path / "test.db"
+        build_index(game, db)
+        conn = sqlite3.connect(db)
+        row = conn.execute(
+            "SELECT text FROM translations WHERE page_id = 20201 AND entry_id = 301"
+        ).fetchone()
+        conn.close()
+        assert row is not None
+        assert row[0] == "Energy Cells"
+
+    def test_ware_names_resolved(self, tmp_path: Path) -> None:
+        game, _ = make_indexed_game_dir(tmp_path)
+        db = tmp_path / "test.db"
+        build_index(game, db)
+        conn = sqlite3.connect(db)
+        row = conn.execute(
+            "SELECT name_resolved FROM wares WHERE ware_id = 'energycells'"
+        ).fetchone()
+        conn.close()
+        assert row is not None
+        assert row[0] == "Energy Cells"
+
+    def test_ware_without_translation_has_empty_resolved(self, tmp_path: Path) -> None:
+        game, _ = make_indexed_game_dir(tmp_path)
+        db = tmp_path / "test.db"
+        build_index(game, db)
+        conn = sqlite3.connect(db)
+        row = conn.execute(
+            "SELECT name_resolved FROM wares WHERE ware_id = 'advancedcomposites'"
+        ).fetchone()
+        conn.close()
+        assert row is not None
+        assert row[0] == "Advanced Composites"
+
+
 class TestPerformanceIndexes:
     """Verify that performance indexes are created during build_index."""
 

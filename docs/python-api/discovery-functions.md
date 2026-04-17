@@ -28,7 +28,7 @@ Returns a dict with all known information or `None` if not found.
 
 ## search_assets
 
-Search across wares, macros, and components by case-insensitive substring match.
+Search across wares, macros, components, datatypes, and keywords by case-insensitive substring match. Wares are searchable by resolved English name (e.g., "Energy Cells"), ID, group, and tags.
 
 ```python
 from x4_catalog import search_assets
