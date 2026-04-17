@@ -120,8 +120,7 @@ Add your mod files under `src/`. For example, to add a stat modification:
 
 ```bash
 # Extract a ship macro
-uv run x4cat extract-macro ship_arg_s_fighter_01_a_macro -o ./base/ \
-    --game-dir "$X4"
+uv run x4cat extract-macro ship_arg_s_fighter_01_a_macro -o ./base/
 
 # Copy for editing
 cp -r ./base/ ./modified/

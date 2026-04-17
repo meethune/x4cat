@@ -19,8 +19,11 @@ result = validate_translations(Path("./src"))
 ```python
 def validate_translations(
     mod_dir: Path,
-) -> dict[str, Any]: ...
+    db_path: Path | str | None = None,
+) -> ValidationReport: ...
 ```
+
+When `db_path` is provided, collision detection against base game translation page IDs is enabled.
 
 Scans all XML files in `mod_dir` for `{pageId,entryId}` references and cross-checks against `t/*.xml` translation files. Only mod-range page IDs (>= 90000) are validated; base game references are ignored.
 

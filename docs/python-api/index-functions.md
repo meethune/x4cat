@@ -8,7 +8,7 @@ nav_order: 4
 # Index Functions
 ## build_index
 
-Build a SQLite index from game files. Indexes macros, components, wares, and macro properties.
+Build a SQLite index from game files. Indexes macros, components, wares, macro_properties, translation_pages, game_files, schema_elements, schema_attributes, schema_enumerations, schema_groups, script_datatypes, script_keywords, and script_properties.
 
 ```python
 from x4_catalog import build_index

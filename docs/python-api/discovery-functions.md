@@ -21,7 +21,7 @@ if result:
 **Signature:**
 
 ```python
-def inspect_asset(asset_id: str, db_path: Any) -> dict[str, Any] | None: ...
+def inspect_asset(asset_id: str, db_path: Path | str) -> dict[str, Any] | None: ...
 ```
 
 Returns a dict with all known information or `None` if not found.
@@ -43,7 +43,7 @@ for r in results:
 ```python
 def search_assets(
     term: str,
-    db_path: Any,
+    db_path: Path | str,
     *,
     type_filter: str | None = None,
 ) -> list[dict[str, str]]: ...
@@ -73,7 +73,7 @@ if result:
 ```python
 def extract_macro(
     macro_id: str,
-    db_path: Any,
+    db_path: Path | str,
     game_dir: Path,
     output_dir: Path,
 ) -> Path | None: ...

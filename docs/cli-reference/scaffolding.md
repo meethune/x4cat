@@ -72,8 +72,8 @@ x4cat scaffold equipment --id <macro_id> --name <name> --clone-from <source_macr
 | `--price-avg N` | Average price |
 | `--price-max N` | Maximum price |
 | `-o`, `--output DIR` | Output directory (default: `./src`) |
-| `--db PATH` | Index database path |
-| `--game-dir DIR` | Game directory (auto-builds index if needed) |
+
+The index database is auto-detected from `~/.cache/x4cat/`. Use the global `--db` flag to specify a database: `x4cat --db path.db scaffold equipment ...`.
 
 **Examples:**
 
@@ -82,16 +82,20 @@ x4cat scaffold equipment --id <macro_id> --name <name> --clone-from <source_macr
 x4cat scaffold equipment \
     --id shield_gen_m_custom_01_macro \
     --name "Custom Shield Mk1" \
-    --clone-from shield_gen_m_standard_01_mk1_macro \
-    --game-dir "/path/to/X4 Foundations"
+    --clone-from shield_gen_m_standard_01_mk1_macro
 
 # Clone a weapon with custom pricing
 x4cat scaffold equipment \
     --id weapon_gen_m_laser_custom_macro \
     --name "Modded Pulse Laser" \
     --clone-from weapon_gen_m_laser_01_mk1_macro \
-    --price-avg 25000 \
-    --game-dir "/path/to/X4 Foundations"
+    --price-avg 25000
+
+# With an explicit index database
+x4cat --db ./game.db scaffold equipment \
+    --id shield_gen_m_custom_01_macro \
+    --name "Custom Shield Mk1" \
+    --clone-from shield_gen_m_standard_01_mk1_macro
 ```
 
 **Generated files:**
@@ -126,8 +130,8 @@ x4cat scaffold ship --id <macro_id> --name <name> --clone-from <source_macro> [o
 | `--price-avg N` | Average price |
 | `--price-max N` | Maximum price |
 | `-o`, `--output DIR` | Output directory (default: `./src`) |
-| `--db PATH` | Index database path |
-| `--game-dir DIR` | Game directory |
+
+The index database is auto-detected from `~/.cache/x4cat/`. Use the global `--db` flag to specify a database: `x4cat --db path.db scaffold ship ...`.
 
 **Examples:**
 
@@ -138,8 +142,7 @@ x4cat scaffold ship \
     --name "Custom Fighter" \
     --clone-from ship_arg_s_fighter_01_a_macro \
     --size s \
-    --price-avg 100000 \
-    --game-dir "/path/to/X4 Foundations"
+    --price-avg 100000
 ```
 
 **Generated files:**
@@ -198,6 +201,8 @@ x4cat validate-translations <mod_dir>
 | Argument | Description |
 |----------|-------------|
 | `mod_dir` | Mod directory to validate |
+
+When an index database is available, `validate-translations` also performs collision detection against base game page IDs. Use the global `--db` flag for enhanced collision detection: `x4cat --db path.db validate-translations <mod_dir>`. The index database is auto-detected from `~/.cache/x4cat/` if available.
 
 **Checks performed:**
 - **MISSING** (error) — `{pageId,entryId}` referenced in mod XML but not defined in any `t/*.xml` file
