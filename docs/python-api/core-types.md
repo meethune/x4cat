@@ -74,4 +74,47 @@ from x4_catalog import FileValidationReport
 | `parse_error` | `str \| None` | Parse error message, or `None` if parsing succeeded |
 | `results` | `list[ValidationResult]` | Per-operation validation results |
 
+## ValidationReport
+
+Return type for validation functions (`validate_translations`, `validate_schema`). A `TypedDict`.
+
+```python
+from x4_catalog import ValidationReport
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `errors` | `list[str]` | List of error messages |
+| `warnings` | `list[str]` | List of warning messages |
+
+## ConflictEntry
+
+A single conflict or overlap between mods. A `TypedDict`.
+
+```python
+from x4_catalog import ConflictEntry
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `file` | `str` | Virtual path of the conflicting file |
+| `sel` | `str` | XPath selector |
+| `mods` | `list[str]` | Names of the mods involved |
+| `operations` | `dict[str, list[str]]` | Operations per mod |
+
+## ConflictReport
+
+Return type for `check_conflicts()`. A `TypedDict`.
+
+```python
+from x4_catalog import ConflictReport
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `conflicts` | `list[ConflictEntry]` | Conflicting overlaps (replace+replace, remove+add/replace) |
+| `safe` | `list[ConflictEntry]` | Safe overlaps (add+add) |
+| `info` | `list[ConflictEntry]` | Mixed operations that may interact |
+| `files_checked` | `int` | Number of shared files checked |
+
 ---

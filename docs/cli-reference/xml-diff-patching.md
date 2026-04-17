@@ -89,7 +89,7 @@ Exit code is 0 if all operations pass, 1 if any fail (or if `--strict` is set an
 Validate MD and AI scripts against schema rules indexed from the game's XSD files. Checks element names are valid in context and required attributes are present — in milliseconds instead of the 72 seconds that XSD compilation takes.
 
 ```
-x4cat validate-schema <mod_dir> [--db DB] [--game-dir DIR]
+x4cat validate-schema <mod_dir>
 ```
 
 **Arguments:**
@@ -98,12 +98,7 @@ x4cat validate-schema <mod_dir> [--db DB] [--game-dir DIR]
 |----------|-------------|
 | `mod_dir` | Mod directory containing `md/` and/or `aiscripts/` |
 
-**Options:**
-
-| Option | Description |
-|--------|-------------|
-| `--db DB` | Index DB path (default: auto-detect) |
-| `--game-dir DIR` | Game directory (auto-builds index if needed) |
+The index database is auto-detected from `~/.cache/x4cat/`. Use the global `--db` flag to specify a database: `x4cat --db path.db validate-schema <mod_dir>`.
 
 **Checks performed:**
 - **Unknown actions** — element inside `<actions>` not found in schema groups
@@ -123,7 +118,7 @@ x4cat validate-schema src/
 ```
 
 {: .note }
-Requires the schema to be indexed. Run `x4cat index <game_dir>` first, or use `--game-dir` to auto-build. The schema extraction adds XSD rules to the SQLite index alongside the existing wares/macros/components data.
+Requires the schema to be indexed. Run `x4cat index <game_dir>` first. The schema extraction adds XSD rules to the SQLite index alongside the existing wares/macros/components data.
 
 ---
 

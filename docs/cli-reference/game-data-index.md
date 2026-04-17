@@ -43,10 +43,12 @@ x4cat index "/path/to/X4 Foundations" -o ./game_index.db
 **Output:**
 
 ```
-Indexed 8542 macros, 6231 components, 1847 wares -> /home/user/.cache/x4cat/a1b2c3d4.db
+Indexed 8542 macros, 6231 components, 1847 wares, 12450 files
+  + 320 schema rules, 4500 script properties
+  → /home/user/.cache/x4cat/a1b2c3d4.db
 ```
 
-The index is automatically used by `inspect`, `search`, `extract-macro`, and `scaffold` commands. It detects when game `.cat` files have changed and skips rebuilding when already up to date.
+The index is automatically used by `inspect`, `search`, `extract-macro`, `scaffold`, `validate-schema`, and `validate-translations` commands. It detects when game `.cat` files have changed and skips rebuilding when already up to date.
 
 ---
 
@@ -64,12 +66,7 @@ x4cat inspect <asset_id> [options]
 |----------|-------------|
 | `asset_id` | Ware ID, macro name, or component name |
 
-**Options:**
-
-| Option | Description |
-|--------|-------------|
-| `--db PATH` | Path to index database (default: auto-detect) |
-| `--game-dir DIR` | Game directory (used to auto-build index if needed) |
+The index database is auto-detected from `~/.cache/x4cat/`. Use `x4cat --db <path>` to specify explicitly.
 
 **Examples:**
 
@@ -80,8 +77,8 @@ x4cat inspect energycells
 # Inspect a ship macro
 x4cat inspect ship_arg_s_fighter_01_a_macro
 
-# Inspect with explicit game directory (auto-builds index)
-x4cat inspect energycells --game-dir "/path/to/X4 Foundations"
+# With an explicit index database
+x4cat --db ./game.db inspect energycells
 ```
 
 **Sample output:**
@@ -118,9 +115,9 @@ x4cat search <term> [options]
 
 | Option | Description |
 |--------|-------------|
-| `--db PATH` | Path to index database (default: auto-detect) |
-| `--game-dir DIR` | Game directory (used to auto-build index if needed) |
 | `--type TYPE` | Filter results by type: `ware`, `macro`, or `component` |
+
+The index database is auto-detected from `~/.cache/x4cat/`. Use `x4cat --db <path>` to specify explicitly.
 
 **Examples:**
 
@@ -133,14 +130,17 @@ x4cat search energy --type ware
 
 # Search macros related to Argon ships
 x4cat search ship_arg --type macro
+
+# With an explicit index database
+x4cat --db ./game.db search fighter
 ```
 
 **Sample output:**
 
 ```
-  macro       ship_arg_s_fighter_01_a_macro  (assets/units/size_s/macros/ship_arg_s_fighter_01_a_macro.xml)
-  macro       ship_arg_s_fighter_01_b_macro  (assets/units/size_s/macros/ship_arg_s_fighter_01_b_macro.xml)
-  ware        ship_arg_s_fighter_01_a  [ship] avg:79800
+  macro       ship_arg_s_fighter_01_a_macro  (assets/units/size_s/macros/ship_arg_s_fighter_01_a_macro.xml)  — ship_s
+  macro       ship_arg_s_fighter_01_b_macro  (assets/units/size_s/macros/ship_arg_s_fighter_01_b_macro.xml)  — ship_s
+  ware        ship_arg_s_fighter_01_a  — [ship] avg:79800
 
 3 result(s)
 ```
@@ -166,8 +166,8 @@ x4cat extract-macro <macro_id> [options]
 | Option | Description |
 |--------|-------------|
 | `-o`, `--output DIR` | Output directory (default: current directory) |
-| `--db PATH` | Path to index database (default: auto-detect) |
-| `--game-dir DIR` | Game directory (default: read from index metadata) |
+
+The index database is auto-detected from `~/.cache/x4cat/`. Use `x4cat --db <path>` to specify explicitly. The game directory is read from the index metadata.
 
 **Examples:**
 
@@ -178,8 +178,8 @@ x4cat extract-macro ship_arg_s_fighter_01_a_macro
 # Extract to a specific directory
 x4cat extract-macro ship_arg_s_fighter_01_a_macro -o ./base/
 
-# With explicit game directory
-x4cat extract-macro shield_gen_m_standard_01_mk1_macro --game-dir "/path/to/X4 Foundations"
+# With an explicit index database
+x4cat --db ./game.db extract-macro shield_gen_m_standard_01_mk1_macro
 ```
 
 The file is written at its full virtual path under the output directory. For example:

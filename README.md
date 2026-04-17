@@ -38,7 +38,7 @@ x4cat inspect energycells
 
 # Search across all wares, macros, and components
 x4cat search "fighter"
-x4cat search "laser" --type weapon
+x4cat search "laser" --type macro
 
 # List and extract game files
 x4cat list "/path/to/X4 Foundations" -g 'md/*.xml'

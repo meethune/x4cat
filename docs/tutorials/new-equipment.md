@@ -26,7 +26,7 @@ A mod that adds a custom medium shield generator cloned from the standard Mk1 sh
 Search for existing shield generators:
 
 ```bash
-x4cat search shield_gen --type macro --game-dir "$X4"
+x4cat search shield_gen --type macro
 ```
 
 Sample output:
@@ -66,7 +66,6 @@ x4cat scaffold equipment \
     --clone-from shield_gen_m_standard_01_mk1_macro \
     --description "A reinforced shield generator with higher capacity but slower recharge" \
     --price-avg 20000 \
-    --game-dir "$X4" \
     -o ./src
 ```
 

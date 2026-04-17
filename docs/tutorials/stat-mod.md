@@ -27,7 +27,7 @@ First, find the macro you want to modify. If you know the macro name, skip ahead
 
 ```bash
 # Search for Argon fighters
-x4cat search fighter --type macro --game-dir "$X4"
+x4cat search fighter --type macro
 ```
 
 This returns a list of matching macros. Find the one you want:
